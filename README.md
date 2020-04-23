@@ -2,15 +2,22 @@
 
 This is an implementation of a Church-style (explicitly typed-annotated) System F (polymorphic) lambda calculus with definitions (let-expression) in Redex. Included are:
 
-* Various metafunctions for multi-parameter functions, multi-argument applications, multi-binding definitions, multi-variable foralls, multi-type function types, and multi-entry type and term contexts
-* Type inference
+### System F
+
+* Type synthesis
 * Head normal form reduction and normal form reduction (both call-by-value)
 * Church encodings of numerals and arithmetic (in progress)
 
+### ANF-Restricted System F
+* Type synthesis
+* Head normal form reduction
+* Continuation-plugging
+* Compiler from System F to ANF-restricted System F
+
 ## TODOs
-* Implement compiler from System F to ANF-restricted System F (possibly as metafunction?)
-* Can you prove compiler correctness in Redex??
+* Add tests for ANF translation (type-preservation and correctness)
+* "Uncurry" functions and definitions into multi-parameter/multi-binding syntactic forms
+* Implement System F with closures and abstract closure conversion from F-ANF to F-ACC
+* Fix ambiguity of ANF evaluation context
 * Add evaluation context for call-by-name evaluation
 * Finish Church encodings
-* Further goal: abstract closure conversion for (ANF-restricted) System F??
-  - I suspect that the annotations in F-to-TAL are only needed for parametric closure conversion, and abstract closure conversion could be done without them

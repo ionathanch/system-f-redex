@@ -4,9 +4,12 @@
                     ;; This is obviously the correct spelling of "judgement"
                     [define-judgment-form define-judgement-form]
                     [judgment-holds       judgement-holds]))
+
 (module+ test
   (require (rename-in redex-chk
                       [redex-judgment-holds-chk redex-judgement-holds-chk])))
+
+(provide (all-defined-out))
 
 ;; ANF-RESTRICTED SYSTEM F ;;
 
@@ -14,7 +17,7 @@
 
 (define-language λF-ANF
   (x α ::= variable-not-otherwise-mentioned) ;; Term and type variables
-  (τ σ ::= α (→ τ τ) (∀ α τ) int) ;; Types
+  (τ σ ::= α (→ τ τ) (∀ α τ)) ;; Types
 
   (v   ::= x (λ (x : τ) e) (Λ α e)) ;; Values
   (c   ::= v (v v) (v [τ])) ;; Computations
@@ -252,7 +255,9 @@
   (redex-judgement-holds-chk
    (⊢c (Δ* α β) ·)
    [((λ (x : (→ α α)) x) (λ (x : α) x)) (→ α α)]
-   [((Λ γ (λ (x : γ) x)) [α]) (→ α α)])
+   [((Λ γ (λ (x : γ) x)) [α]) (→ α α)]
+   #;[((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ])
+    (→ γ (∀ β (→ β γ)))])
 
   (redex-judgement-holds-chk
    (⊢e (Δ* α β) ·)
@@ -272,7 +277,11 @@
 
   (test-equal
    (first (judgement-holds (⊢v · · (Λ γ (λ (x : γ) x)) τ) τ))
-   (term (∀ γ (→ γ γ)))))
+   (term (∀ γ (→ γ γ))))
+
+  (test-equal
+   (first (judgement-holds (⊢c (· γ) · ((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ]) τ) τ))
+   (term (→ γ (∀ α (→ α γ))))))
 
 ;; Δ Γ ⊢ K : τ ⇒ τ
 (define-judgement-form λF-ANF
@@ -377,9 +386,9 @@
   (compatible-closure plug λF-ANF k))
 
 (define-metafunction λF-ANF
-  continue : k -> any
-  [(continue k)
-   ,(first (apply-reduction-relation* ⟶* (term k) #:cache-all? #t))])
+  continue : (K c) -> e
+  [(continue (K c))
+   ,(first (apply-reduction-relation* plug (term (K c)) #:cache-all? #t))])
 
 (module+ test
   (test-->

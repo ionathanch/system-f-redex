@@ -4,9 +4,12 @@
                     ;; This is obviously the correct spelling of "judgement"
                     [define-judgment-form define-judgement-form]
                     [judgment-holds       judgement-holds]))
+
 (module+ test
   (require (rename-in redex-chk
                       [redex-judgment-holds-chk redex-judgement-holds-chk])))
+
+(provide (all-defined-out))
 
 ;; SYSTEM F ;;
 
@@ -14,14 +17,14 @@
 
 (define-language λF
   (x α ::= variable-not-otherwise-mentioned) ;; Term and type variables
-  (τ σ ::= α (→ τ τ) (∀ α τ) int) ;; Types
+  (τ σ ::= α (→ τ τ) (∀ α τ)) ;; Types
   (e   ::= x (λ (x : τ) e) (e e) (Λ α e) (e [τ]) (let [x e] e)) ;; Terms
 
   (Δ   ::= · (Δ α)) ;; Type contexts
   (Γ   ::= · (Γ (x : τ))) ;; Term contexts
 
   (v   ::= x (λ (x : τ) e) (Λ α e)) ;; Values
-  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e)) ;; Evaluation contexts (call-by-value)
+  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e) (let [x v] E)) ;; Evaluation contexts (call-by-value)
 
   #:binding-forms
   (λ (x : τ) e #:refers-to x)
@@ -216,6 +219,8 @@
    [(λ (x : α) x) (→ α α)]
    [((λ (x : (→ α α)) x) (λ (x : α) x)) (→ α α)]
    #;[(Λ γ (λ (x : γ) x)) (∀ γ (→ γ γ))]
+   #;[((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ])
+    (→ γ (∀ β (→ β γ)))]
    [((Λ γ (λ (x : γ) x)) [α]) (→ α α)]
    [(let [x (Λ α (λ (y : α) y))] (@ x [(∀ α (→ α α))] x)) (∀ α (→ α α))])
 
@@ -224,9 +229,14 @@
   ;; commented out does not work, and we have to instead mantually test
   ;; that the judgement produces an alpha-equivalent type
   ;; The default #:equiv for test-equal is the default-language's alpha-equivalent?
+
   (test-equal
    (first (judgement-holds (⊢ · · (Λ γ (λ (x : γ) x)) τ) τ))
-   (term (∀ γ (→ γ γ)))))
+   (term (∀ γ (→ γ γ))))
+
+  (test-equal
+   (first (judgement-holds (⊢ (· γ) · ((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ]) τ) τ))
+   (term (→ γ (∀ α (→ α γ))))))
 
 
 ;; Dynamic Semantics
