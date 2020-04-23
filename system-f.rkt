@@ -56,6 +56,13 @@
   [(@ e [τ] any ...)
    (@ (e [τ]) any ...)])
 
+;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
+(define-metafunction λF
+  let* : ([x e] ...) e -> e
+  [(let* () e) e]
+  [(let* ([x e] [x_r e_r] ...) e_body)
+   (let [x e] (let* ([x_r e_r] ...) e_body))])
+
 ;; Unroll (τ_1 → ... → τ_n) into (τ_1 → (... → τ_n))
 (define-metafunction λF
   →* : τ ... τ -> τ
@@ -91,6 +98,8 @@
    (λ* ([x : α] β [z : γ]) (x z)) (λ (x : α) (Λ β (λ (z : γ) (x z))))
    (@ x) x
    (@ x [β] z) ((x [β]) z)
+   (let* ([x (λ (x : α) x)]) x) (let [x (λ (x : α) x)] x)
+   (let* ([x (λ (x : α) x)] [y x] [z y]) z) (let (x (λ (x : α) x)) (let (y x) (let (z y) z)))
    (→* α) α
    (→* α β γ) (→ α (→ β γ))
    (→* (→ α β) γ) (→ (→ α β) γ)
@@ -208,7 +217,7 @@
    [((λ (x : (→ α α)) x) (λ (x : α) x)) (→ α α)]
    #;[(Λ γ (λ (x : γ) x)) (∀ γ (→ γ γ))]
    [((Λ γ (λ (x : γ) x)) [α]) (→ α α)]
-   [(let [x (Λ α (λ (y : α) y))] ((x [(∀ α (→ α α))]) x)) (∀ α (→ α α))])
+   [(let [x (Λ α (λ (y : α) y))] (@ x [(∀ α (→ α α))] x)) (∀ α (→ α α))])
 
   ;; The ⊢ judgement will return (∀ γ«n» (→ γ«n» γ«n»)) to "prevent"
   ;; shadowing between the term's γ and the type's γ, so the test above
@@ -240,7 +249,8 @@
 
 (define-metafunction λF
   reduce : e -> v
-  [(reduce e) ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
+  [(reduce e)
+   ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
 (module+ test
   (test-->
@@ -279,7 +289,8 @@
 
 (define-metafunction λF
   normalize : e -> v
-  [(normalize e) ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
+  [(normalize e)
+   ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
 
 ;; Church encoding
 
