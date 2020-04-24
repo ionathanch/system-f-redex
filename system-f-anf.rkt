@@ -27,6 +27,7 @@
   (Γ   ::= · (Γ (x : τ))) ;; Term contexts
   
   (E   ::= hole (let [x E] e)) ;; Evaluation contexts
+  (F   ::= E (λ (x : τ) F) (Λ α F)) ;; Evaluation contexts (normal form)
 
   (K   ::= ∘ (let [x ∘] e)) ;; Continuations
   (k   ::= (∘ c) ((let [x ∘] k) c)) ;; Continuation expressions
@@ -353,6 +354,14 @@
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
+(define ⇓
+  (context-closure ⟶ λF-ANF F))
+
+(define-metafunction λF-ANF
+  normalize : e -> v
+  [(normalize e)
+   ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
+
 (module+ test
   (test-->
    ⟶*
@@ -374,7 +383,11 @@
                 [a (z [(∀ β (→ β β))])]
                 [b (a (λ (y : β) y))])
            b))
-   (term (λ (y : β) y))))
+   (term (λ (y : β) y)))
+  (test-->>
+   ⇓
+   (term (λ (x : α) ((λ (y : β) y) x)))
+   (term (λ (x : α) x))))
 
 (define plug
   (reduction-relation

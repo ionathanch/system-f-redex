@@ -83,7 +83,7 @@
 
 (define-extended-language λANF⇓ λANF
   ;; This context causes ambiguous evaluation order!
-  (F ::= hole (λ (x : τ) F) (Λ α F) (let [x F] e) (let [x c] F)))
+  (G ::= hole (λ (x : τ) G) (Λ α G) (let [x G] e) (let [x c] G)))
 
 (define ⟶
   (reduction-relation
@@ -96,7 +96,7 @@
         "ζ-body")))
 
 (define ⟶*
-  (context-closure ⟶ λANF⇓ F))
+  (context-closure ⟶ λANF⇓ G))
 
 (define-metafunction λANF
   compile : e -> e

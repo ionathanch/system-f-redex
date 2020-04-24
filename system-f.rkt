@@ -24,7 +24,8 @@
   (Γ   ::= · (Γ (x : τ))) ;; Term contexts
 
   (v   ::= x (λ (x : τ) e) (Λ α e)) ;; Values
-  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e) (let [x v] E)) ;; Evaluation contexts (call-by-value)
+  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e)) ;; Evaluation contexts (call-by-value)
+  (F   ::= E (λ (x : τ) F) (Λ α F)) ;; Evaluation contexts (normal form)
 
   #:binding-forms
   (λ (x : τ) e #:refers-to x)
@@ -262,6 +263,14 @@
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
+(define ⇓
+  (context-closure ⟶ λF F))
+
+(define-metafunction λF
+  normalize : e -> v
+  [(normalize e)
+   ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
+
 (module+ test
   (test-->
    ⟶*
@@ -281,26 +290,12 @@
               (@ x [(∀ α (→ α α))] x))
             [(∀ β (→ β β))]
             (λ (y : β) y)))
-   (term (λ (y : β) y))))
+   (term (λ (y : β) y)))
+  (test-->>
+   ⇓
+   (term (λ (x : α) ((λ (y : β) y) x)))
+   (term (λ (x : α) x))))
 
-
-;; Bonus Content
-
-;; Normalization
-;; The following extensions reduce lambda terms to normal form,
-;; which isn't necessarily something we want if we're compiling;
-;; instead, we want to keep computations abstracted.
-
-(define-extended-language λF⇓ λF
-  (F ::= E (λ (x : τ) F) (Λ α F)))
-
-(define ⇓
-  (context-closure ⟶ λF⇓ F))
-
-(define-metafunction λF
-  normalize : e -> v
-  [(normalize e)
-   ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
 
 ;; Church encoding
 

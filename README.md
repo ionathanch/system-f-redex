@@ -10,7 +10,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ### ANF-Restricted System F
 * Type synthesis
-* Head normal form reduction
+* Head normal form and normal form reduction
 * Continuation-plugging
 * Compiler from System F to ANF-restricted System F
 
@@ -21,3 +21,4 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Fix ambiguity of ANF evaluation context
 * Add evaluation context for call-by-name evaluation
 * Finish Church encodings
+* Add inventory of metafunctions to this README
