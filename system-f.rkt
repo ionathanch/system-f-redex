@@ -97,22 +97,22 @@
 
 (module+ test
   (redex-chk
-   (λ* ([x : α]) x) (λ (x : α) x)
-   (λ* (α) x) (Λ α x)
-   (λ* ([x : α] β [z : γ]) (x z)) (λ (x : α) (Λ β (λ (z : γ) (x z))))
+   (λ* ([x : a]) x) (λ (x : a) x)
+   (λ* (a) x) (Λ a x)
+   (λ* ([x : a] b [z : c]) (x z)) (λ (x : a) (Λ b (λ (z : c) (x z))))
    (@ x) x
-   (@ x [β] z) ((x [β]) z)
-   (let* ([x (λ (x : α) x)]) x) (let [x (λ (x : α) x)] x)
-   (let* ([x (λ (x : α) x)] [y x] [z y]) z) (let (x (λ (x : α) x)) (let (y x) (let (z y) z)))
-   (→* α) α
-   (→* α β γ) (→ α (→ β γ))
-   (→* (→ α β) γ) (→ (→ α β) γ)
-   (∀* (α) α) (∀ α α)
-   (∀* (α β γ) β) (∀ α (∀ β (∀ γ β)))
+   (@ x [a] y) ((x [a]) y)
+   (let* ([x (λ (x : a) x)]) x) (let [x (λ (x : a) x)] x)
+   (let* ([x (λ (x : a) x)] [y x] [z y]) z) (let (x (λ (x : a) x)) (let (y x) (let (z y) z)))
+   (→* a) a
+   (→* a b c) (→ a (→ b c))
+   (→* (→ a b) c) (→ (→ a b) c)
+   (∀* (a) a) (∀ a a)
+   (∀* (a b c) b) (∀ a (∀ b (∀ c b)))
    (Γ*) ·
-   (Γ* (x : α) (y : β)) ((· (x : α)) (y : β))
+   (Γ* (x : a) (y : b)) ((· (x : a)) (y : b))
    (Δ*) ·
-   (Δ* α β) ((· α) β)))
+   (Δ* a b) ((· a) b)))
 
 
 ;; Static Semantics
@@ -144,16 +144,16 @@
 (module+ test
   (redex-judgement-holds-chk
    ∈Γ
-   [#:f x α ·]
-   [#:f x α (· (y : α))]
-   [#:f x β (· (x : α))]
-   [x α (· (x : α))]
-   [x (→ α β) (Γ* (y : α) (x : (→ α β)))])
+   [#:f x a ·]
+   [#:f x a (· (y : a))]
+   [#:f x b (· (x : a))]
+   [x a (· (x : a))]
+   [x (→ a b) (Γ* (y : a) (x : (→ a b)))])
 
   (redex-judgement-holds-chk
    ∈Δ
-   [α (Δ* α β γ)]
-   [#:f α (· β)]))
+   [a (Δ* a b c)]
+   [#:f a (· b)]))
 
 ;; Δ ⊢ τ
 (define-judgement-form λF
@@ -176,10 +176,10 @@
 (module+ test
   (redex-judgement-holds-chk
    ⊢τ
-   [(· α) α]
-   [(· α) (→ α α)]
-   [(· α) (∀ α α)]
-   [#:f (· β) α]))
+   [(· a) a]
+   [(· a) (→ a a)]
+   [(· a) (∀ a a)]
+   [#:f (· b) a]))
 
 ;; Δ Γ ⊢ e : τ
 (define-judgement-form λF
@@ -214,30 +214,18 @@
    ---------------------------- "let"
    (⊢ Δ Γ (let [x e_x] e) τ)])
 
+;; Places where α is used to pattern-match to any type variable
+;; to test for an alpha-equivalent type have been marked with ;; α
 (module+ test  
   (redex-judgement-holds-chk
-   (⊢ (Δ* α β) ·) ;; We need some base types, after all
-   [(λ (x : α) x) (→ α α)]
-   [((λ (x : (→ α α)) x) (λ (x : α) x)) (→ α α)]
-   #;[(Λ γ (λ (x : γ) x)) (∀ γ (→ γ γ))]
-   #;[((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ])
-    (→ γ (∀ β (→ β γ)))]
-   [((Λ γ (λ (x : γ) x)) [α]) (→ α α)]
-   [(let [x (Λ α (λ (y : α) y))] (@ x [(∀ α (→ α α))] x)) (∀ α (→ α α))])
-
-  ;; The ⊢ judgement will return (∀ γ«n» (→ γ«n» γ«n»)) to "prevent"
-  ;; shadowing between the term's γ and the type's γ, so the test above
-  ;; commented out does not work, and we have to instead mantually test
-  ;; that the judgement produces an alpha-equivalent type
-  ;; The default #:equiv for test-equal is the default-language's alpha-equivalent?
-
-  (test-equal
-   (first (judgement-holds (⊢ · · (Λ γ (λ (x : γ) x)) τ) τ))
-   (term (∀ γ (→ γ γ))))
-
-  (test-equal
-   (first (judgement-holds (⊢ (· γ) · ((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ]) τ) τ))
-   (term (→ γ (∀ α (→ α γ))))))
+   (⊢ (Δ* a b) ·)
+   [(λ (x : a) x) (→ a a)]
+   [((λ (x : (→ a a)) x) (λ (x : a) x)) (→ a a)]
+   [(Λ a (λ (x : a) x)) (∀ α (→ α α))] ;; α
+   [((Λ a (λ (x : a) x)) [b]) (→ b b)]
+   [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [b])
+    (→ b (∀ α (→ α b)))] ;; α
+   [(let [x (Λ a (λ (y : a) y))] (@ x [(∀ a (→ a a))] x)) (∀ a (→ a a))]))
 
 
 ;; Dynamic Semantics
@@ -274,27 +262,27 @@
 (module+ test
   (test-->
    ⟶*
-   (term ((λ (x : α) x) (λ (y : β) y)))
-   (term (λ (y : β) y)))
+   (term ((λ (x : a) x) (λ (y : b) y)))
+   (term (λ (y : b) y)))
   (test-->
    ⟶*
-   (term ((Λ α (λ (x : α) x)) [(∀ β β)]))
-   (term (λ (x : (∀ β β)) x)))
+   (term ((Λ a (λ (x : a) x)) [(∀ b b)]))
+   (term (λ (x : (∀ b b)) x)))
   (test-->
    ⟶*
    (term (let [x y] (x x)))
    (term (y y)))
   (test-->>
    ⟶*
-   (term (@ (let [x (λ* (α [y : α]) y)]
-              (@ x [(∀ α (→ α α))] x))
-            [(∀ β (→ β β))]
-            (λ (y : β) y)))
-   (term (λ (y : β) y)))
+   (term (@ (let [x (λ* (a [y : a]) y)]
+              (@ x [(∀ a (→ a a))] x))
+            [(∀ b (→ b b))]
+            (λ (y : b) y)))
+   (term (λ (y : b) y)))
   (test-->>
    ⇓
-   (term (λ (x : α) ((λ (y : β) y) x)))
-   (term (λ (x : α) x))))
+   (term (λ (x : a) ((λ (y : b) y) x)))
+   (term (λ (x : a) x))))
 
 
 ;; Church encoding
@@ -306,17 +294,17 @@
    (number->term ,(sub1 (term number)) (λ (x_1 : τ_1) (λ (x_2 : τ_2) (x_1 e))))])
 (define-metafunction λF
   ♯ : number -> e
-  [(♯ number) (Λ α (number->term number (λ* ([f : (→ α α)] [x : α]) x)))])
+  [(♯ number) (Λ a (number->term number (λ* ([f : (→ a a)] [x : a]) x)))])
 
-(define-term nat (∀ α (→* (→ α α) α α)))
+(define-term nat (∀ a (→* (→ a a) a a)))
 
 (define-term succ
-  (λ* ([n : nat] α [f : (→ α α)] [x : α])
-      (f (@ n [α] f x))))
+  (λ* ([n : nat] a [f : (→ a a)] [x : a])
+      (f (@ n [a] f x))))
 
 (define-term plus
-  (λ* ([n : nat] [m : nat] α [f : (→ α α)] [x : α])
-      (@ n [α] f (@ m [α] f x))))
+  (λ* ([n : nat] [m : nat] a [f : (→ a a)] [x : a])
+      (@ n [a] f (@ m [a] f x))))
 
 ;; putting this on hold, because I wanted to implement ANF, not go through the motions of Church encoding
 ;; I am satisfied knowing that the basic arithmetic operations are probably all typeable in System F

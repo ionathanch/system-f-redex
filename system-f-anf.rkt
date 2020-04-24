@@ -113,20 +113,20 @@
 
 (module+ test
   (redex-chk
-   (λ* ([x : α]) x) (λ (x : α) x)
-   (λ* (α) x) (Λ α x)
-   (λ* ([x : α] β [z : γ]) (x z)) (λ (x : α) (Λ β (λ (z : γ) (x z))))
-   (let* ([x (λ (x : α) x)]) x) (let [x (λ (x : α) x)] x)
-   (let* ([x (λ (x : α) x)] [y x] [z y]) z) (let (x (λ (x : α) x)) (let (y x) (let (z y) z)))
-   (→* α) α
-   (→* α β γ) (→ α (→ β γ))
-   (→* (→ α β) γ) (→ (→ α β) γ)
-   (∀* (α) α) (∀ α α)
-   (∀* (α β γ) β) (∀ α (∀ β (∀ γ β)))
+   (λ* ([x : a]) x) (λ (x : a) x)
+   (λ* (a) x) (Λ a x)
+   (λ* ([x : a] b [z : d]) (x z)) (λ (x : a) (Λ b (λ (z : d) (x z))))
+   (let* ([x (λ (x : a) x)]) x) (let [x (λ (x : a) x)] x)
+   (let* ([x (λ (x : a) x)] [y x] [z y]) z) (let (x (λ (x : a) x)) (let (y x) (let (z y) z)))
+   (→* a) a
+   (→* a b d) (→ a (→ b d))
+   (→* (→ a b) d) (→ (→ a b) d)
+   (∀* (a) a) (∀ a a)
+   (∀* (a b d) b) (∀ a (∀ b (∀ d b)))
    (Γ*) ·
-   (Γ* (x : α) (y : β)) ((· (x : α)) (y : β))
+   (Γ* (x : a) (y : b)) ((· (x : a)) (y : b))
    (Δ*) ·
-   (Δ* α β) ((· α) β)))
+   (Δ* a b) ((· a) b)))
 
 
 ;; Static Semantics
@@ -158,16 +158,16 @@
 (module+ test
   (redex-judgement-holds-chk
    ∈Γ
-   [#:f x α ·]
-   [#:f x α (· (y : α))]
-   [#:f x β (· (x : α))]
-   [x α (· (x : α))]
-   [x (→ α β) (Γ* (y : α) (x : (→ α β)))])
+   [#:f x a ·]
+   [#:f x a (· (y : a))]
+   [#:f x b (· (x : a))]
+   [x a (· (x : a))]
+   [x (→ a b) (Γ* (y : a) (x : (→ a b)))])
 
   (redex-judgement-holds-chk
    ∈Δ
-   [α (Δ* α β γ)]
-   [#:f α (· β)]))
+   [a (Δ* a b c)]
+   [#:f a (· b)]))
 
 ;; Δ ⊢ τ
 (define-judgement-form λF-ANF
@@ -190,10 +190,10 @@
 (module+ test
   (redex-judgement-holds-chk
    ⊢τ
-   [(· α) α]
-   [(· α) (→ α α)]
-   [(· α) (∀ α α)]
-   [#:f (· β) α]))
+   [(· a) a]
+   [(· a) (→ a a)]
+   [(· a) (∀ a a)]
+   [#:f (· b) a]))
 
 ;; Δ Γ ⊢ v : τ
 (define-judgement-form λF-ANF
@@ -246,43 +246,37 @@
    ---------------------------- "let"
    (⊢e Δ Γ (let [x c] e) τ)])
 
+;; Places where α is used to pattern-match to any type variable
+;; to test for an alpha-equivalent type have been marked with ;; α
 (module+ test  
   (redex-judgement-holds-chk
-   (⊢v (Δ* α β) (· (z : α)))
-   [z α]
-   [(λ (x : α) x) (→ α α)]
-   #;[(Λ γ (λ (x : γ) x)) (∀ γ (→ γ γ))])
+   (⊢v (Δ* a b) (· (z : a)))
+   [z a]
+   [(λ (x : a) x) (→ a a)]
+   [(Λ a (λ (x : a) x)) (∀ α (→ α α))])  ;; α
 
   (redex-judgement-holds-chk
-   (⊢c (Δ* α β) ·)
-   [((λ (x : (→ α α)) x) (λ (x : α) x)) (→ α α)]
-   [((Λ γ (λ (x : γ) x)) [α]) (→ α α)]
-   #;[((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ])
-    (→ γ (∀ β (→ β γ)))])
+   (⊢c (Δ* a b) ·)
+   [((λ (x : (→ a a)) x) (λ (x : a) x)) (→ a a)]
+   [((Λ a (λ (x : a) x)) [b]) (→ b b)]
+   [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [b])
+    (→ b (∀ α (→ α b)))]) ;; α
 
   (redex-judgement-holds-chk
-   (⊢e (Δ* α β) ·)
-   [(let [x (Λ α (λ (y : α) y))] x) (∀ α (→ α α))]
-   [(let* ([x (Λ α (λ (y : α) y))]
+   (⊢e (Δ* a b) ·)
+   [(let [x (Λ a (λ (y : a) y))] x) (∀ α (→ α α))] ;; α
+   [(let* ([x (Λ a (λ (y : a) y))]
            [y x])
       y)
-    (∀ α (→ α α))]
-   [(let* ([x (Λ α (λ (y : α) y))]
+    (∀ α (→ α α))] ;; α
+   [(let* ([x (Λ a (λ (y : a) y))]
            [y x])
-      (y [(∀ β (→ β β))]))
-    (→ (∀ β (→ β β)) (∀ β (→ β β)))]
-   [(let* ([x (Λ α (λ (y : α) y))]
-           [y (x [(∀ β (→ β β))])])
+      (y [(∀ b (→ b b))]))
+    (→ (∀ b (→ b b)) (∀ b (→ b b)))]
+   [(let* ([x (Λ a (λ (y : a) y))]
+           [y (x [(∀ b (→ b b))])])
       y)
-    (→ (∀ β (→ β β)) (∀ β (→ β β)))])
-
-  (test-equal
-   (first (judgement-holds (⊢v · · (Λ γ (λ (x : γ) x)) τ) τ))
-   (term (∀ γ (→ γ γ))))
-
-  (test-equal
-   (first (judgement-holds (⊢c (· γ) · ((Λ α (λ (x : α) (Λ α (λ (y : α) x)))) [γ]) τ) τ))
-   (term (→ γ (∀ α (→ α γ))))))
+    (→ (∀ b (→ b b)) (∀ b (→ b b)))]))
 
 ;; Δ Γ ⊢ K : τ ⇒ τ
 (define-judgement-form λF-ANF
@@ -313,22 +307,22 @@
 
 (module+ test
   (redex-judgement-holds-chk
-   (⊢K (· α) ·)
-   [∘ α α]
-   [∘ (→ α α) (→ α α)]
-   [(let [x ∘] x) α α]
+   (⊢K (· a) ·)
+   [∘ a a]
+   [∘ (→ a a) (→ a a)]
+   [(let [x ∘] x) a a]
    [(let [x ∘]
-      (let [y (λ (z : α) z)]
+      (let [y (λ (z : a) z)]
         (y x)))
-    α α])
+    a a])
 
   (redex-judgement-holds-chk
-   (⊢k (Δ* α) (Γ* (a : α)))
+   (⊢k (Δ* α) (Γ* (w : a)))
    [((let [x ∘]
        ((let [y ∘]
           ((let [z ∘]
-             (∘ z)) y)) x)) a)
-    α]))
+             (∘ z)) y)) x)) w)
+    a]))
 
 
 ;; Dynamic Semantics
@@ -365,29 +359,29 @@
 (module+ test
   (test-->
    ⟶*
-   (term ((λ (x : α) x) (λ (y : β) y)))
-   (term (λ (y : β) y)))
+   (term ((λ (x : a) x) (λ (y : b) y)))
+   (term (λ (y : b) y)))
   (test-->
    ⟶*
-   (term ((Λ α (λ (x : α) x)) [(∀ β β)]))
-   (term (λ (x : (∀ β β)) x)))
+   (term ((Λ a (λ (x : a) x)) [(∀ b b)]))
+   (term (λ (x : (∀ b b)) x)))
   (test-->
    ⟶*
    (term (let [x y] (x x)))
    (term (y y)))
   (test-->>
    ⟶*
-   (term (let* ([x (λ* (α [y : α]) y)]
-                [y (x [(∀ α (→ α α))])]
+   (term (let* ([x (λ* (a [y : a]) y)]
+                [y (x [(∀ a (→ a a))])]
                 [z (y x)]
-                [a (z [(∀ β (→ β β))])]
-                [b (a (λ (y : β) y))])
-           b))
-   (term (λ (y : β) y)))
+                [w (z [(∀ b (→ b b))])]
+                [u (w (λ (y : b) y))])
+           u))
+   (term (λ (y : b) y)))
   (test-->>
    ⇓
-   (term (λ (x : α) ((λ (y : β) y) x)))
-   (term (λ (x : α) x))))
+   (term (λ (x : a) ((λ (y : b) y) x)))
+   (term (λ (x : a) x))))
 
 (define plug
   (reduction-relation
@@ -417,5 +411,5 @@
    (term ((let [x ∘]
             ((let [y ∘]
                ((let [z ∘]
-                  (∘ z)) c)) b)) a))
-   (term (let* ([x a] [y b] [z c]) z))))
+                  (∘ z)) r)) q)) p))
+   (term (let* ([x p] [y q] [z r]) z))))
