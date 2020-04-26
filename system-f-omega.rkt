@@ -19,13 +19,15 @@
 ;; Syntax
 
 (define-extended-language λFω λF
-  (κ ι ::= * (⇒ κ κ))
+  (κ ι ::= * (⇒ κ κ)) ;; Kinds
   (τ σ ::= .... (∀ (α : κ) τ) (Λ (α : κ) τ) (τ τ)) ;; Types
   (e   ::= .... (Λ (α : κ) e)) ;; Terms
-  (v   ::= .... (Λ (α : κ) e)) ;; Term values
-  (w   ::= α (→ w w) (∀ (α : κ) w) (Λ (α : κ) τ)) ;; Type values
   (Δ   ::= · (Δ (α : κ))) ;; Type contexts
+
+  (v   ::= .... (Λ (α : κ) e)) ;; Term values
   (F   ::= .... (Λ (α : κ) F)) ;; Evaluation contexts (normal form)
+
+  (w   ::= α (→ w w) (∀ (α : κ) w) (Λ (α : κ) τ)) ;; Type values
   (G   ::= hole (→ G τ) (→ w G) (∀ (α : κ) G) (G τ) (w G)) ;; Evaluation contexts (types)
 
   #:binding-forms
