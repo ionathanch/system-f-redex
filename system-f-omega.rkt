@@ -210,6 +210,19 @@
    -------------------------- "let"
    (⊢ Δ Γ (let [x e_x] e) τ)])
 
+;; Places where α is used to pattern-match to any type variable
+;; to test for an alpha-equivalent type have been marked with ;; α
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢ (Δ* (a : *) (b : (⇒ * *))) (Γ* (x : a) (y : (b a))))
+   [x a]
+   [(λ (x : a) x) (→ a a)]
+   [((λ (x : a) x) x) a]
+   [((λ (x : ((Λ (b : *) b) a)) x) x) a]
+   [(Λ (a : *) (λ (x : a) x)) (∀ (α : *) (→ α α))] ;; α
+   [((Λ (a : *) (λ (x : a) x)) [a]) (→ a a)]
+   [((Λ (a : *) (λ (x : ((Λ (b : *) b) a)) x)) [a]) (→ a a)]))
+
 
 ;; Dynamic Semantics
 
