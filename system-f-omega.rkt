@@ -221,7 +221,41 @@
    [((λ (x : ((Λ (b : *) b) a)) x) x) a]
    [(Λ (a : *) (λ (x : a) x)) (∀ (α : *) (→ α α))] ;; α
    [((Λ (a : *) (λ (x : a) x)) [a]) (→ a a)]
-   [((Λ (a : *) (λ (x : ((Λ (b : *) b) a)) x)) [a]) (→ a a)]))
+   [((Λ (a : *) (λ (x : ((Λ (b : *) b) a)) x)) [a]) (→ a a)])
+
+  ;; The following is the Church-style version of the term R found in the paper
+  ;; "Characterization of typings in polymorphic type discipline" by P. Giannini and S. Ronchi Della Rocca
+  ;; DOI: https://doi.org/10.1109/LICS.1988.5101
+  ;; It was shown in Section 4 that R has no typing in System F,
+  ;; while it does have a typing in System Fω in Section 6, Theorem 19.
+  ;; Here, we annotate all term variable bindings by their type and explicitly perform type application.
+  ;; It is important to note that in R, b and c are free type variables,
+  ;; where b is the return type of R and c is a type in the applied x terms within R.
+
+  (define-term ϕ (→* c c c))
+  (define-term ψ (→ ϕ ϕ))
+  (define-term θ (→ c c))
+  (define-term φ (→* θ ψ b))
+  (define-term ω (∀ (b : *) (a b)))
+  (define-term χ (∀ (a : (⇒ * *)) (→ ω (a (→ c (a c))))))
+  (define-term ϵ (Λ (d : *) d))
+  (define-term δ (Λ (d : *) (→ d d)))
+  (define-term ρ (→ φ b))
+
+  (define-term K (λ* ([b : *] [z : b] [w : b]) z)) ;; K ≡ λzw.z : (∀(b:*).b → b → b)
+  (define-term I (λ* ([b : *] [z : b]) z)) ;; I ≡ λz.z : (∀(b:*).b → b)
+  (define-term D (λ* ([a : (⇒ * *)] [x : ω]) (@ x [(→ c (a c))] x))) ;; D ≡ λx.xx : χ
+  (define-term R ((λ* ([x : χ] [y : φ]) (@ y (@ x [ϵ] I) (@ x [δ] K))) D)) ;; R ≡ (λxy.y(xI)(xK))D : ρ
+
+  (module+ test
+    (redex-judgement-holds-chk
+     (⊢ (Δ (b : *) (c : *)) ·)
+     [K (∀ (α : *) (→* α α α))]
+     [I (∀ (α : *) (→ α α))]
+     [(@ D [δ] K) ψ]
+     [(@ D [ϵ] I) θ]
+     [D χ]
+     [R ρ])))
 
 
 ;; Dynamic Semantics
