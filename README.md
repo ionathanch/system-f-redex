@@ -20,6 +20,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ## TODOs
 * Add tests for ANF translation (type-preservation and correctness)
+* Fix System Fω type synthesis (will fail for terms with unreduced type applications)
 * Add tests for System Fω (type synthesis, reduction)
 * "Uncurry" functions and definitions into multi-parameter/multi-binding syntactic forms (F-ANF)
 * Implement System F with closures and abstract closure conversion from F-ANF to F-ACC
