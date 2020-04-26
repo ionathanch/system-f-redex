@@ -1,8 +1,10 @@
 #lang racket
 
-(require (rename-in redex/reduction-semantics
-                    ;; This is obviously the correct spelling of "judgement"
+(require (rename-in (prefix-in F. "./system-f.rkt")
+                    [F.λF λF])
+         (rename-in redex/reduction-semantics
                     [define-judgment-form define-judgement-form]
+                    [define-extended-judgment-form define-extended-judgement-form]
                     [judgment-holds       judgement-holds]))
 
 (module+ test
@@ -15,28 +17,16 @@
 
 ;; Syntax
 
-(define-language λF-ANF
-  (x α ::= variable-not-otherwise-mentioned) ;; Term and type variables
-  (τ σ ::= α (→ τ τ) (∀ α τ)) ;; Types
-
-  (v   ::= x (λ (x : τ) e) (Λ α e)) ;; Values
+(define-extended-language λF-ANF λF
   (c   ::= v (v v) (v [τ])) ;; Computations
   (e   ::= c (let [x c] e)) ;; Configurations
-
-  (Δ   ::= · (Δ α)) ;; Type contexts
-  (Γ   ::= · (Γ (x : τ))) ;; Term contexts
   
   (E   ::= hole (let [x E] e)) ;; Evaluation contexts
-  (F   ::= E (λ (x : τ) F) (Λ α F)) ;; Evaluation contexts (normal form)
 
   (K   ::= ∘ (let [x ∘] e)) ;; Continuations
   (k   ::= (∘ c) ((let [x ∘] k) c)) ;; Continuation expressions
 
   #:binding-forms
-  (λ (x : τ) e #:refers-to x)
-  (Λ α e #:refers-to α)
-  (∀ α τ #:refers-to α)
-  (let [x e_1] e_2 #:refers-to x)
   (let [x ∘] e #:refers-to x))
 
 (default-language λF-ANF)
@@ -56,60 +46,28 @@
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
-(define-metafunction λF-ANF
-  λ* : (any ...) e -> e
-  [(λ* () e) e]
-  [(λ* ([x : τ] any ...) e)
-   (λ (x : τ) (λ* (any ...) e))]
-  [(λ* (α any ...) e)
-   (Λ α (λ* (any ...) e))])
+(define-metafunction/extension F.λ* λF-ANF
+  λ* : (any ...) e -> e)
 
-;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
-;; where (a ::= e [τ])
-;; Doesn't apply to ANF terms
-#;(define-metafunction λF-ANF
-    @ : any ... -> e
-    [(@ e) e]
-    [(@ e_1 e_2 any ...)
-     (@ (e_1 e_2) any ...)]
-    [(@ e [τ] any ...)
-     (@ (e [τ]) any ...)])
-
-;; Unroll (let* ([x_1 a_1] ... [x_n a_n]) e) into (let [x_1 a_1] ... (let [x_n a_n] e))
-;; where (a ::= c ∘)
-(define-metafunction λF-ANF
-  let* : ([x any] ...) e -> e
-  [(let* () e) e]
-  [(let* ([x any] [x_r any_r] ...) e)
-   (let [x any] (let* ([x_r any_r] ...) e))])
+;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
+(define-metafunction/extension F.let* λF-ANF
+  let* : ([x e] ...) e -> e)
 
 ;; Unroll (τ_1 → ... → τ_n) into (τ_1 → (... → τ_n))
-(define-metafunction λF-ANF
-  →* : τ ... τ -> τ
-  [(→* τ) τ]
-  [(→* τ τ_r ...)
-   (→ τ (→* τ_r ...))])
+(define-metafunction/extension F.→* λF-ANF
+  →* : τ ... τ -> τ)
 
 ;; Unroll (∀* (α_1 ... a_n) τ) as (∀ α_1 ... (∀ α_n τ))
-(define-metafunction λF-ANF
-  ∀* : (α ...) τ -> τ
-  [(∀* () τ) τ]
-  [(∀* (α α_r ...) τ)
-   (∀ α (∀* (α_r ...) τ))])
+(define-metafunction/extension F.∀* λF-ANF
+  ∀* : (α ...) τ -> τ)
 
 ;; Unroll ((x_1 : τ_1) ... (x_n : τ_n)) into ((· (x_1 : τ_1)) ... (x_n : τ_n))
-(define-metafunction λF-ANF
-  Γ* : (x : τ) ... -> Γ
-  [(Γ*) ·]
-  [(Γ* (x_r : τ_r) ... (x : τ))
-   ((Γ* (x_r : τ_r) ...) (x : τ))])
+(define-metafunction/extension F.Γ* λF-ANF
+  Γ* : (x : τ) ... -> Γ)
 
 ;; Unroll (α_1 ... α_n) into ((· α_1) ... α_n)
-(define-metafunction λF-ANF
-  Δ* : α ... -> Δ
-  [(Δ*) ·]
-  [(Δ* α_r ... α)
-   ((Δ* α_r ...) α)])
+(define-metafunction/extension F.Δ* λF-ANF
+  Δ* : α ... -> Δ)
 
 (module+ test
   (redex-chk
@@ -132,28 +90,19 @@
 ;; Static Semantics
 
 ;; (x : τ) ∈ Γ
-(define-judgement-form λF-ANF
+(define-extended-judgement-form λF-ANF F.∈Γ
   #:contract (∈Γ x τ Γ)
-  #:mode (∈Γ I O I)
-
-  [--------------------- "Γ-car"
-   (∈Γ x τ (Γ (x : τ)))]
-
-  [(∈Γ x τ Γ)
-   ----------------------- "Γ-cdr"
-   (∈Γ x τ (Γ (x_0 : σ)))])
+  #:mode (∈Γ I O I))
 
 ;; α ∈ Δ
-(define-judgement-form λF-ANF
+(define-extended-judgement-form λF-ANF F.∈Δ
   #:contract (∈Δ α Δ)
-  #:mode (∈Δ I I)
+  #:mode (∈Δ I I))
 
-  [------------- "Δ-car"
-   (∈Δ α (Δ α))]
-
-  [(∈Δ α Δ)
-   --------------- "Δ-cdr"
-   (∈Δ α (Δ α_0))])
+;; Δ ⊢ τ
+(define-extended-judgement-form λF-ANF F.⊢τ
+  #:contract (⊢τ Δ τ)
+  #:mode (⊢τ I I))
 
 (module+ test
   (redex-judgement-holds-chk
@@ -167,27 +116,8 @@
   (redex-judgement-holds-chk
    ∈Δ
    [a (Δ* a b c)]
-   [#:f a (· b)]))
+   [#:f a (· b)])
 
-;; Δ ⊢ τ
-(define-judgement-form λF-ANF
-  #:contract (⊢τ Δ τ)
-  #:mode (⊢τ I I)
-
-  [(∈Δ α Δ)
-   --------- "τ-var"
-   (⊢τ Δ α)]
-
-  [(⊢τ Δ σ)
-   (⊢τ Δ τ)
-   --------------- "τ-fun"
-   (⊢τ Δ (→ σ τ))]
-
-  [(⊢τ (Δ α) τ)
-   ---------------- "τ-poly"
-   (⊢τ Δ (∀ α τ))])
-
-(module+ test
   (redex-judgement-holds-chk
    ⊢τ
    [(· a) a]
@@ -328,17 +258,8 @@
 ;; Dynamic Semantics
 
 (define ⟶
-  (reduction-relation
-   λF-ANF
-   (--> ((λ (x : τ) e) v)
-        (substitute e x v)
-        "β")
-   (--> ((Λ α e) [τ])
-        (substitute e α τ)
-        "τ")
-   (--> (let [x v] e)
-        (substitute e x v)
-        "ζ")))
+  (extend-reduction-relation
+   F.⟶ λF-ANF))
 
 (define ⟶*
   (context-closure ⟶ λF-ANF E))
@@ -383,15 +304,22 @@
    (term (λ (x : a) ((λ (y : b) y) x)))
    (term (λ (x : a) x))))
 
+;; Continuation plugging
+;; a computation into a hole
 (define plug
   (reduction-relation
    λF-ANF
-   (--> (∘ e) e)
+   (--> (∘ c) c)
    (--> ((let [x ∘] e) c) (let [x c] e))))
 
+;; Compatible closure of plug
+;; based on a series of plugged continuations
 (define plug*
   (compatible-closure plug λF-ANF k))
 
+;; Reflexive, transitive closure of plug
+;; We don't need the compatible closure for ANF translation
+;; since only one continuation is being plugged into at a time
 (define-metafunction λF-ANF
   continue : (K c) -> e
   [(continue (K c))

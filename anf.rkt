@@ -3,7 +3,6 @@
 (require (prefix-in s. "./system-f.rkt")
          (prefix-in t. "./system-f-anf.rkt")
          (rename-in redex/reduction-semantics
-                    ;; This is obviously the correct spelling of "judgement"
                     [define-judgment-form define-judgement-form]
                     [judgment-holds       judgement-holds])
          redex/gui)
@@ -14,7 +13,8 @@
 
 (define-union-language λANF s.λF t.λF-ANF)
 
-;; τ ↦ τ
+;; [τ] ↦ τ
+;; In System F, this does nothing.
 (define-judgement-form λANF
   #:contract (↦τ τ τ)
   #:mode (↦τ I O)
@@ -22,16 +22,16 @@
   [--------- "τ-var"
    (↦τ α α)]
 
-  [(↦τ τ_1s τ_1t)
-   (↦τ τ_2s τ_2t)
+  [(↦τ σ_s σ_t)
+   (↦τ τ_s τ_t)
    --------------------------------- "τ-fun"
-   (↦τ (→ τ_1s τ_2s) (→ τ_1t τ_2t))]
+   (↦τ (→ σ_s τ_s) (→ σ_t τ_t))]
 
   [(↦τ τ_s τ_t)
    -------------------------- "τ-poly"
    (↦τ (∀ α τ_s) (∀ α τ_t))])
 
-;; e K ↦ e
+;; [e]K ↦ e
 (define-judgement-form λANF
   #:contract (↦ e K e)
   #:mode (↦ I I O)
@@ -85,6 +85,7 @@
   ;; This context causes ambiguous evaluation order!
   (G ::= hole (λ (x : τ) G) (Λ α G) (let [x G] e) (let [x c] G)))
 
+;; Reduction of redundant bindings
 (define ⟶
   (reduction-relation
    λANF
@@ -95,9 +96,11 @@
         c
         "ζ-body")))
 
+;; Compatible closure of ⟶
 (define ⟶*
   (context-closure ⟶ λANF⇓ G))
 
+;; Reflexive, transitive closure of ⟶*
 (define-metafunction λANF
   compile : e -> e
   [(compile e)

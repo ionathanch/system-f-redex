@@ -166,11 +166,11 @@
 
   [(⊢τ Δ σ)
    (⊢τ Δ τ)
-   --------------- "τ-fun"
+   --------------- "τ-arr"
    (⊢τ Δ (→ σ τ))]
 
   [(⊢τ (Δ α) τ)
-   ---------------- "τ-poly"
+   ---------------- "τ-forall"
    (⊢τ Δ (∀ α τ))])
 
 (module+ test
@@ -243,17 +243,22 @@
         (substitute e x v)
         "ζ")))
 
+;; Compatible closure of ⟶
 (define ⟶*
   (context-closure ⟶ λF E))
 
+;; Reflexive, transitive closure of ⟶*
 (define-metafunction λF
   reduce : e -> v
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
+;; Compatible closure of ⟶
+;; including under lambdas
 (define ⇓
   (context-closure ⟶ λF F))
 
+;; Reflexive, transitive closure of ⇓
 (define-metafunction λF
   normalize : e -> v
   [(normalize e)
@@ -285,7 +290,7 @@
    (term (λ (x : a) x))))
 
 
-;; Church encoding
+;; Church Encoding
 
 (define-metafunction λF
   number->term : number (λ (x : τ) (λ (x : τ) e)) -> e

@@ -3,7 +3,6 @@
 (require (rename-in (prefix-in F. "./system-f.rkt")
                     [F.λF λF])
          (rename-in redex/reduction-semantics
-                    ;; This is obviously the correct spelling of "judgement"
                     [define-judgment-form          define-judgement-form]
                     [define-extended-judgment-form define-extended-judgement-form]
                     [judgment-holds                judgement-holds]))
@@ -93,7 +92,7 @@
 
 ;; Unroll ([α_1 : κ] ... [α_n : κ]) into ((· (α_1 : κ_1)) ... (α_n : κ_n))
 (define-metafunction λFω
-  Δ* : [α : κ] ... -> Δ
+  Δ* : (α : κ) ... -> Δ
   [(Δ*) ·]
   [(Δ* (α_r : κ_r) ... (α : κ))
    ((Δ* (α_r : κ_r) ...) (α : κ))])
@@ -136,6 +135,7 @@
    [a * (· (a : *))]
    [a (⇒ * *) (· (a : (⇒ * *)))]
    [a * (Δ* (a : *) (b : (⇒ * *)))]
+   [b (⇒ * *) (Δ* (a : *) (b : (⇒ * *)))]
    [a * (Δ* (a : (⇒ * *)) (a : *))]))
 
 ;; Δ ⊢ τ : κ
@@ -162,8 +162,18 @@
    (⊢τ Δ (→ σ τ) *)]
 
   [(⊢τ (Δ (α : κ)) τ *)
-   ------------------------ "τ-poly"
+   ------------------------ "τ-forall"
    (⊢τ Δ (∀ (α : κ) τ) *)])
+
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢τ (Δ* (a : *) (b : (⇒ * *))))
+   [b (⇒ * *)]
+   [(Λ (a : *) a) (⇒ * *)]
+   [(Λ (a : (⇒ * *)) a) (⇒ (⇒ * *) (⇒ * *))]
+   [(Λ (a : *) b) (⇒ * (⇒ * *))]
+   [(b a) *]
+   [((Λ (a : *) a) a) *]))
 
 ;; Δ Γ ⊢ e : τ
 (define-judgement-form λFω
@@ -179,8 +189,9 @@
    ------------------------------ "fun"
    (⊢ Δ Γ (λ (x : σ) e) (→ σ τ))]
 
-  [(⊢ Δ Γ e_2 σ)
-   (⊢ Δ Γ e_1 (→ σ τ))
+  [(⊢ Δ Γ e_2 σ_2)
+   (⊢ Δ Γ e_1 σ_1)
+   (where (σ (→ σ τ)) ((reduce-type σ_2) (reduce-type σ_1)))
    -------------------- "app"
    (⊢ Δ Γ (e_1 e_2) τ)]
 
@@ -189,7 +200,8 @@
    (⊢ Δ Γ (Λ (α : κ) e) (∀ (α : κ) τ))]
 
   [(⊢τ Δ σ κ)
-   (⊢ Δ Γ e (∀ (α : κ) τ))
+   (⊢ Δ Γ e τ_0)
+   (where (∀ (α : κ) τ) (reduce-type τ_0))
    ----------------------------------- "polyapp"
    (⊢ Δ Γ (e [σ]) (substitute τ α σ))]
 
@@ -201,6 +213,7 @@
 
 ;; Dynamic Semantics
 
+;; Term reduction
 (define ⟶
   (extend-reduction-relation
    F.⟶ λFω
@@ -208,22 +221,28 @@
         (substitute e α τ)
         "τ")))
 
+;; Compatible closure of ⟶
 (define ⟶*
   (context-closure ⟶ λFω E))
 
+;; Reflexive, transitive closure of ⟶*
 (define-metafunction λFω
   reduce : e -> v
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
+;; Compatible closure of ⟶*
+;; including under lambdas
 (define ⇓
   (context-closure ⟶ λFω F))
 
+;; Reflexive, transitive closure of ⇓
 (define-metafunction λFω
   normalize : e -> v
   [(normalize e)
    ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
 
+;; Type reduction
 (define ⟹
   (reduction-relation
    λFω
@@ -231,9 +250,13 @@
         (substitute τ α w)
         "β")))
 
+;; Compatible closure of ⟹
+;; NOT under any lambdas
 (define ⟹*
   (context-closure ⟹ λFω G))
 
+;; Reflexive, transitive closure of ⟹
+;; producing only types (no type operators)
 (define-metafunction λFω
   reduce-type : τ -> w
   [(reduce-type τ)
