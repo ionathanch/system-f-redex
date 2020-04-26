@@ -1,8 +1,7 @@
 #lang racket
 
-(require (rename-in (except-in "./system-f.rkt" λ* ∀* Δ* ∈Δ)
-                    [⊢ F.⊢]
-                    [⟶ F.⟶])
+(require (rename-in (prefix-in F. "./system-f.rkt")
+                    [F.λF λF])
          (rename-in redex/reduction-semantics
                     ;; This is obviously the correct spelling of "judgement"
                     [define-judgment-form          define-judgement-form]
@@ -21,13 +20,13 @@
 
 (define-extended-language λFω λF
   (κ ι ::= * (⇒ κ κ))
-  (τ σ ::= .... (Λ (α : κ) τ) (∀ (α : κ) τ) (τ τ)) ;; Types
+  (τ σ ::= .... (∀ (α : κ) τ) (Λ (α : κ) τ) (τ τ)) ;; Types
   (e   ::= .... (Λ (α : κ) e)) ;; Terms
   (v   ::= .... (Λ (α : κ) e)) ;; Term values
-  (w   ::= α (Λ (α : κ) τ)) ;; Type values
+  (w   ::= α (→ w w) (∀ (α : κ) w) (Λ (α : κ) τ)) ;; Type values
   (Δ   ::= · (Δ (α : κ))) ;; Type contexts
   (F   ::= .... (Λ (α : κ) F)) ;; Evaluation contexts (normal form)
-  (G   ::= hole (G τ) (w G)) ;; Evaluation contexts (types)
+  (G   ::= hole (→ G τ) (→ w G) (∀ (α : κ) G) (G τ) (w G)) ;; Evaluation contexts (types)
 
   #:binding-forms
   (∀ (α : κ) τ #:refers-to α)
@@ -45,6 +44,19 @@
   [(λ* ([α : κ] any ...) e)
    (Λ (α : κ) (λ* (any ...) e))])
 
+;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
+;; where (a ::= e [τ])
+(define-metafunction/extension F.@ λFω
+  @ : any ... -> e)
+
+;; Unroll (τ_1 → ... → τ_n) into (τ_1 → (... → τ_n))
+(define-metafunction/extension F.→* λFω
+  →* : τ ... τ -> τ)
+
+;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
+(define-metafunction/extension F.let* λFω
+  let* : ([x e] ...) e -> e)
+
 ;; Unroll (Λ* ([α_1 : κ_1] ... [α_n : κ_n]) τ) into (Λ (α_1 : κ_1) ... (Λ (α_n : κ_n) τ))
 (define-metafunction λFω
   Λ* : ([α : κ] ...) τ -> τ
@@ -52,9 +64,9 @@
   [(Λ* ([α : κ] [α_r : κ_r] ...) τ)
    (Λ (α : κ) (Λ* ([α_r : κ_r] ...) τ))])
 
-;; Unroll (@* τ τ_1 ... τ_n) into ((e τ_1) ... τ_n)
+;; Unroll (@* τ τ_1 ... τ_n) into ((τ τ_1) ... τ_n)
 (define-metafunction λFω
-  @* : any ... -> e
+  @* : τ ... -> e
   [(@* τ) τ]
   [(@* τ_1 τ_2 any ...)
    (@* (τ_1 τ_2) any ...)])
@@ -72,6 +84,10 @@
   [(∀* () τ) τ]
   [(∀* ([α : κ] [α_r : κ_r] ...) τ)
    (∀ (α : κ) (∀* ([α_r : κ_r] ...) τ))])
+
+;; Unroll ((x_1 : τ_1) ... (x_n : τ_n)) into ((· (x_1 : τ_1)) ... (x_n : τ_n))
+(define-metafunction/extension F.Γ* λFω
+  Γ* : (x : τ) ... -> Γ)
 
 ;; Unroll ([α_1 : κ] ... [α_n : κ]) into ((· (α_1 : κ_1)) ... (α_n : κ_n))
 (define-metafunction λFω
@@ -92,16 +108,21 @@
 
 ;; Static Semantics
 
+;; (x : τ) ∈ Γ
+(define-extended-judgement-form λFω F.∈Γ
+  #:contract (∈Γ x τ Γ)
+  #:mode (∈Γ I O I))
+
 ;; (α : κ) ∈ Δ
 (define-judgement-form λFω
   #:contract (∈Δ α κ Δ)
   #:mode (∈Δ I O I)
 
-  [------------- "Δ-car"
+  [--------------------- "Δ-car"
    (∈Δ α κ (Δ (α : κ)))]
 
   [(∈Δ α κ Δ)
-   --------------- "Δ-cdr"
+   ------------------------- "Δ-cdr"
    (∈Δ α κ (Δ (α_0 : κ_0)))])
 
 (module+ test
@@ -143,23 +164,37 @@
    (⊢τ Δ (∀ (α : κ) τ) *)])
 
 ;; Δ Γ ⊢ e : τ
-(define-extended-judgement-form λFω F.⊢
+(define-judgement-form λFω
   #:contract (⊢ Δ Γ e τ)
   #:mode (⊢ I I I O)
+
+  [(∈Γ x τ Γ)
+   ------------ "var"
+   (⊢ Δ Γ x τ)]
   
   [(⊢τ Δ σ *)
    (⊢ Δ (Γ (x : σ)) e τ)
-   ------------------------------------ "fun"
+   ------------------------------ "fun"
    (⊢ Δ Γ (λ (x : σ) e) (→ σ τ))]
 
+  [(⊢ Δ Γ e_2 σ)
+   (⊢ Δ Γ e_1 (→ σ τ))
+   -------------------- "app"
+   (⊢ Δ Γ (e_1 e_2) τ)]
+
   [(⊢ (Δ (α : κ)) Γ e τ)
-   ------------------------- "polyfun"
+   ------------------------------------- "polyfun"
    (⊢ Δ Γ (Λ (α : κ) e) (∀ (α : κ) τ))]
 
   [(⊢τ Δ σ κ)
    (⊢ Δ Γ e (∀ (α : κ) τ))
-   ------------------------------------- "polyapp"
-   (⊢ Δ Γ (e [σ]) (substitute τ α σ))])
+   ----------------------------------- "polyapp"
+   (⊢ Δ Γ (e [σ]) (substitute τ α σ))]
+
+  [(⊢ Δ Γ e_x σ)
+   (⊢ Δ (Γ (x : σ)) e τ)
+   -------------------------- "let"
+   (⊢ Δ Γ (let [x e_x] e) τ)])
 
 
 ;; Dynamic Semantics
@@ -198,6 +233,6 @@
   (context-closure ⟹ λFω G))
 
 (define-metafunction λFω
-  reduce-type : e -> v
-  [(reduce-type e)
-   ,(first (apply-reduction-relation* ⟹* (term e) #:cache-all? #t))])
+  reduce-type : τ -> w
+  [(reduce-type τ)
+   ,(first (apply-reduction-relation* ⟹* (term τ) #:cache-all? #t))])
