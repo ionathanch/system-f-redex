@@ -1,6 +1,6 @@
 # System F in Redex
 
-This is an implementation of a Church-style (explicitly typed-annotated) System F (polymorphic) lambda calculus with definitions (let-expression) in Redex. Included are:
+This is an implementation of a Church-style (explicitly typed-annotated) System F (polymorphic) lambda calculus with definitions (let-expressions) in Redex. Included are:
 
 ### System F
 * Type synthesis
