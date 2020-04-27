@@ -13,6 +13,11 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Continuation-plugging
 * Compiler from System F to ANF-restricted System F
 
+### Closure-Converted System F
+* Under construction
+* Type synthesis and reduction (almost)
+* Compiler from ANF-restricted System F to closure-converted System F (not yet)
+
 ### System Fω (extends System F)
 * Why? I don't know.
 * Type synthesis
@@ -20,10 +25,10 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ## TODOs
 * Add tests for ANF translation (type-preservation and correctness)
-* "Uncurry" functions and definitions into multi-parameter/multi-binding syntactic forms (F-ANF)
-* Implement System F with closures and abstract closure conversion from F-ANF to F-ACC
+* Add tests for ACC type inference and reduction
+* Implement abstract closure conversion from F-ANF to F-ACC
 * Fix ambiguity of ANF evaluation context
-* Add evaluation context for call-by-name evaluation (F, F-ANF, Fω)
+* Add evaluation context for call-by-name evaluation (all)
 * Finish Church encodings (F)
 * Add inventory of metafunctions to this README
 * Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (Fω)
