@@ -26,3 +26,4 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Add evaluation context for call-by-name evaluation (F, F-ANF, Fω)
 * Finish Church encodings (F)
 * Add inventory of metafunctions to this README
+* Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (Fω)
