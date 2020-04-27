@@ -7,11 +7,36 @@
                     [define-extended-judgment-form define-extended-judgement-form]
                     [judgment-holds                judgement-holds]))
 
-(module+ test
-  (require (rename-in redex-chk
-                      [redex-judgment-holds-chk redex-judgement-holds-chk])))
-
 (provide (all-defined-out))
+
+(module+ test
+  (require rackunit
+           (rename-in redex-chk
+                      [redex-judgment-holds-chk redex-judgement-holds-chk]))
+
+  ;; (redex-judgement-equals-chk (judgement-form-id pat/term ...) [pat/term ... #:pat pattern #:term term] ...)
+  ;; This calls (judgement-holds (judgement-form-id pat/term ...) pattern) for each branch
+  ;; and checks whether any term bound to the pattern is equivalent to the provided term
+  ;; using default-equiv to compare terms. For example,
+  #;(redex-let
+     L
+     ([num-type  num]
+      [bool-type bool])
+     (redex-judgement-equals-chk
+      (types ·)
+      [0    t #:pat t #:term num-type]
+      [true t #:pat t #:term bool-type]))
+  ;; will check whether num-type  is equivalent to any of (judgement-holds (types · 0    t) t)
+  ;; and  also  whether bool-type is equivalent to any of (judgement-holds (types · true t) t).
+
+  (define-syntax-rule (redex-judgement-equals-chk
+                       (name dargs ...)
+                       [args ... #:pat pat #:term trm] ...)
+    (begin
+      (check-true
+       (ormap (curry (default-equiv) (term trm))
+              (judgement-holds (name dargs ... args ...) pat))) ...)))
+
 
 ;; SYSTEM Fω ;;
 
@@ -236,7 +261,7 @@
   (define-term ψ (→ ϕ ϕ))
   (define-term θ (→ c c))
   (define-term φ (→* θ ψ b))
-  (define-term ω (∀ (b : *) (a b)))
+  (define-term ω (∀ (b : *) (→ b (a b))))
   (define-term χ (∀ (a : (⇒ * *)) (→ ω (a (→ c (a c))))))
   (define-term ϵ (Λ (d : *) d))
   (define-term δ (Λ (d : *) (→ d d)))
@@ -244,18 +269,27 @@
 
   (define-term K (λ* ([b : *] [z : b] [w : b]) z)) ;; K ≡ λzw.z : (∀(b:*).b → b → b)
   (define-term I (λ* ([b : *] [z : b]) z)) ;; I ≡ λz.z : (∀(b:*).b → b)
-  (define-term D (λ* ([a : (⇒ * *)] [x : ω]) (@ x [(→ c (a c))] x))) ;; D ≡ λx.xx : χ
+  (define-term D (λ* ([a : (⇒ * *)] [x : ω]) (@ x [(→ c (a c))] (x [c])))) ;; D ≡ λx.xx : χ
   (define-term R ((λ* ([x : χ] [y : φ]) (@ y (@ x [ϵ] I) (@ x [δ] K))) D)) ;; R ≡ (λxy.y(xI)(xK))D : ρ
 
-  (module+ test
-    (redex-judgement-holds-chk
-     (⊢ (Δ (b : *) (c : *)) ·)
-     [K (∀ (α : *) (→* α α α))]
-     [I (∀ (α : *) (→ α α))]
-     [(@ D [δ] K) ψ]
-     [(@ D [ϵ] I) θ]
-     [D χ]
-     [R ρ])))
+  (redex-judgement-holds-chk
+   (⊢ (Δ* (b : *) (c : *)) ·)
+   [K (∀ (α : *) (→ α (→ α α)))]
+   [I (∀ (α : *) (→ α α))]
+   #;[(@ D [δ] K) ψ]
+   #;[(@ D [ϵ] I) θ]
+   #;[D χ]
+   #;[R ρ])
+
+  ;; The tests commented out above don't work because
+  ;; judgement outputs match against patterns, not terms
+  ;; The tests below test the above as intended
+  (redex-judgement-equals-chk
+   (⊢ (Δ* (b : *) (c : *)) ·)
+   [(@ D [δ] K) τ #:pat τ #:term ψ]
+   [(@ D [ϵ] I) τ #:pat τ #:term θ]
+   [D τ #:pat τ #:term χ]
+   [R τ #:pat τ #:term ρ]))
 
 
 ;; Dynamic Semantics
@@ -305,6 +339,6 @@
 ;; Reflexive, transitive closure of ⟹
 ;; producing only types (no type operators)
 (define-metafunction λFω
-  reduce-type : τ -> w
+  reduce-type : τ -> τ
   [(reduce-type τ)
    ,(first (apply-reduction-relation* ⟹* (term τ) #:cache-all? #t))])
