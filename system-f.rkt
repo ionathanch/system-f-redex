@@ -6,8 +6,7 @@
                     [judgment-holds       judgement-holds]))
 
 (module+ test
-  (require (rename-in redex-chk
-                      [redex-judgment-holds-chk redex-judgement-holds-chk])))
+  (require "./redex-chk.rkt"))
 
 (provide (all-defined-out))
 

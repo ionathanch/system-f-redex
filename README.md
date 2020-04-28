@@ -25,10 +25,10 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ## TODOs
 * Add tests for ANF translation (type-preservation and correctness)
-* Add tests for ACC type inference and reduction
+* Add tests for ACC reduction
 * Implement abstract closure conversion from F-ANF to F-ACC
 * Fix ambiguity of ANF evaluation context
 * Add evaluation context for call-by-name evaluation (all)
 * Finish Church encodings (F)
 * Add inventory of metafunctions to this README
-* Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (Fω)
+* Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (redex-chk)

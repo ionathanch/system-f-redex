@@ -8,8 +8,7 @@
          redex/gui)
 
 (module+ test
-  (require (rename-in redex-chk
-                      [redex-judgment-holds-chk redex-judgement-holds-chk])))
+  (require "./redex-chk.rkt"))
 
 (define-union-language λANF s.λF t.λF-ANF)
 

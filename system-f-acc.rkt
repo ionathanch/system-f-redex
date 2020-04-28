@@ -8,8 +8,7 @@
                     [judgment-holds                judgement-holds]))
 
 (module+ test
-  (require (rename-in redex-chk
-                      [redex-judgment-holds-chk redex-judgement-holds-chk])))
+  (require "./redex-chk.rkt"))
 
 (provide (all-defined-out))
 
@@ -19,34 +18,58 @@
 
 (define-extended-language λF-ACC λF-ANF
   (y β ::= variable-not-otherwise-mentioned) ;; More variable nonterminals
+
   (τ σ ::= .... ;; Types
-     (vcode (α ...) (τ ...) α τ)  ;; ∀ (α ...). τ → ... → ∀ α. τ
-     (tcode (α ...) (τ ...) τ τ)) ;; ∀ (α ...). τ → ... → τ → τ
+     (vcode (α ...) (τ ...) β σ)  ;; ∀ (α ...). τ → ... → ∀ α. τ
+     (tcode (α ...) (τ ...) σ σ)) ;; ∀ (α ...). τ → ... → τ → τ
+
   (k ::= ;; Code
-     (Λ (α ...) ([x : τ] ...) α e)        ;; Λ (α ...). λ (x:τ ...). Λ α.   e
-     (λ (α ...) ([x : τ] ...) (x : τ) e)) ;; Λ (α ...). λ (x:τ ...). λ x:τ. e
+     (Λ (α ...) ([x : τ] ...) β e)        ;; Λ (α ...). λ (x:τ ...). Λ α.   e
+     (λ (α ...) ([x : τ] ...) (y : σ) e)) ;; Λ (α ...). λ (x:τ ...). λ x:τ. e
+
   (v ::= x (⟨ k [σ ...] (v ...) ⟩)) ;; Values (incl. closures)
+
   (F ::= E ;; Evaluation contexts (under closures)
        (⟨ F [σ ...] (v ...) ⟩)
-       (Λ (α ...) ([x : τ] ...) α F)
-       (λ (α ...) ([x : τ] ...) (x : τ) F))
+       (Λ (α ...) ([x : τ] ...) β F)
+       (λ (α ...) ([x : τ] ...) (y : σ) F))
 
-  #:binding-forms
-  (Λ (α ...)
-     ([x : τ] ...) #:refers-to (shadow α ...)
-     α_1 e #:refers-to (shadow α ... x ... α_1))
+  ;; Redex complains about the colon being used at different depths in the following
   #;(λ (α ...)
     ([x : τ] ...) #:refers-to (shadow α ...)
-    (x_1 : τ_1) #:refers-to (shadow α ...)
-    e #:refers-to (shadow α ... x ... x_1)) ;; TODO: Fix this
+    (y : σ) #:refers-to (shadow α ...)
+    e #:refers-to (shadow α ... x ... y))
+  ;; so instead we treat the bindings separately and export the variables
+
+  (b ::= ([x : τ] ...)) ;; Bindings
+  #:binding-forms
+  ([x : τ] ...) #:exports (shadow x ...)
+  (Λ (α ...)
+     b #:refers-to (shadow α ...)
+     β e #:refers-to (shadow α ... b β))
+  (λ (α ...)
+    b #:refers-to (shadow α ...)
+    (y : σ) #:refers-to (shadow α ...)
+    e #:refers-to (shadow α ... b y))
   (vcode
    (α ...) (τ ...) #:refers-to (shadow α ...)
-   α_1 τ_1 #:refers-to (shadow α ... α_1))
+   β σ #:refers-to (shadow α ... β))
   (tcode
    (α ...) (τ ...) #:refers-to (shadow α ...)
-   τ_1 #:refers-to (shadow α ...)
-   τ_2 #:refers-to (shadow α ...)))
+   σ_1 #:refers-to (shadow α ...)
+   σ_2 #:refers-to (shadow α ...)))
 
+(default-language λF-ACC)
+
+;; Check that the bindings are working correctly
+;; The following should therefore be alpha-equivalent
+(module+ test
+  (redex-chk
+   #:eq (Λ (a b) ([x : a] [y : b]) c (y [c]))     (Λ (i j) ([u : i] [w : j]) k (w [k]))
+   #:eq (λ (a b) ([x : a] [y : b]) (z : a) (y z)) (λ (i j) ([u : i] [v : j]) (w : i) (v w))
+   #:eq (vcode (a b) (b a) c (→ a c))             (vcode (i j) (j i) k (→ i k))
+   #:eq (tcode (a b) (b a) (→ a b) (→ b a))       (tcode (i j) (j i) (→ i j) (→ j i))
+   #:f #:eq (Λ (a) ([x : a]) b (x [b]))           (Λ (b) ([x : b]) a (x [b]))))
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
@@ -118,6 +141,12 @@
    --------------------------------------- "τ-tcode"
    (⊢τ Δ (tcode (α ...) (τ ...) σ_1 σ_2))])
 
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢τ ·)
+   [(vcode (a b) (b a) c (→* a b c))]
+   [(tcode (a b) (b a) (→ a b) (→ b a))]))
+
 ;; Δ Γ ⊢ k : τ
 (define-judgement-form λF-ACC
   #:contract (⊢k Δ Γ k τ)
@@ -135,6 +164,12 @@
    ------------------------------------------------------------------------------- "tcode"
    (⊢k Δ Γ (λ (α ...) ([x : τ] ...) (y : σ_1) e) (tcode (α ...) (τ ...) σ_1 σ_2))])
 
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢k · ·)
+   [(Λ (a b) ([x : a] [y : (∀ b b)]) c (y [c])) (vcode (α_1 β_1) (α_1 (∀ β_2 β_2)) α_2 α_2)]
+   [(λ (a b) ([x : a] [y : (→ a b)]) (z : a) (y z)) (tcode (α β) (α (→ α β)) α β)]))
+
 ;; Δ Γ ⊢ v : τ
 (define-extended-judgement-form λF-ACC F.⊢v
   #:contract (⊢v Δ Γ v τ)
@@ -143,16 +178,28 @@
   [(⊢k Δ Γ k (vcode (α ..._1) (τ ..._2) β σ_1))
    (⊢τ Δ σ) ...
    (where Δ_0 (Δ+ Δ α ...))
-   (⊢v Δ_0 Γ v τ) ...
+   (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
+   (where σ_2 (substitute* σ_1 (α ...) (σ ...)))
+   (⊢v Δ_0 Γ v τ_0) ...
    ----------------------------------------------- "fun"
-   (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) (∀ β σ_1))]
+   (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) (∀ β σ_2))]
 
   [(⊢k Δ Γ k (tcode (α ..._1) (τ ..._2) σ_1 σ_2))
    (⊢τ Δ σ) ...
    (where Δ_0 (Δ+ Δ α ...))
-   (⊢v Δ_0 Γ v τ) ...
-   ------------------------------------------------ "polyfun"
-   (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) (→ σ_1 σ_2))])
+   (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
+   (where σ_12 (substitute* (→ σ_1 σ_2) (α ...) (σ ...)))
+   (⊢v Δ_0 Γ v τ_0) ...
+   ----------------------------------------- "polyfun"
+   (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) σ_12)])
+
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢v (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(⟨ (Λ (a) ([x : a]) c x) [(∀ b b)] (y) ⟩) (∀ α (∀ β β))])
+  (redex-judgement-equals-chk
+   (⊢v (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
 
 ;; Δ Γ ⊢ c : τ
 (define-extended-judgement-form λF-ACC F.⊢c
@@ -166,6 +213,17 @@
 
 
 ;; Dynamic Semantics
+
+(define-metafunction λF-ACC
+  substitute** : (any ..._0) (x ..._1) (any ..._1) -> (any ..._0)
+  [(substitute** (any ...) any_var any_val)
+   ((substitute* any any_var any_val) ...)])
+
+(define-metafunction λF-ACC
+  substitute* : any (x ..._1) (any ..._1) -> any
+  [(substitute* any () ()) any]
+  [(substitute* any (x_0 x_r ...) (any_0 any_r ...))
+   (substitute* (substitute any x_0 any_0) (x_r ...) (any_r ...))])
 
 (define ⟶
   (extend-reduction-relation
