@@ -20,7 +20,7 @@
   (c   ::= v (v v) (v [τ])) ;; Computations
   (e   ::= c (let [x c] e)) ;; Configurations
   
-  (E   ::= hole (let [x E] e)) ;; Evaluation contexts
+  (E   ::= hole (let [x hole] e)) ;; Evaluation contexts
 
   (K   ::= ∘ (let [x ∘] e)) ;; Continuations
   (k   ::= (∘ c) ((let [x ∘] k) c)) ;; Continuation expressions

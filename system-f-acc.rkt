@@ -29,6 +29,7 @@
 
   (v ::= x (⟨ k [σ ...] (v ...) ⟩)) ;; Values (incl. closures)
 
+  (E ::= hole (let (x hole) e))
   (F ::= E ;; Evaluation contexts (under closures)
      (⟨ F [σ ...] (v ...) ⟩)
      (Λ (α ...) ([x : τ] ...) β F)
@@ -177,19 +178,17 @@
 
   [(⊢k Δ Γ k (vcode (α ..._1) (τ ..._2) β σ_1))
    (⊢τ Δ σ) ...
-   (where Δ_0 (Δ+ Δ α ...))
    (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
    (where σ_2 (substitute* σ_1 (α ...) (σ ...)))
-   (⊢v Δ_0 Γ v τ_0) ...
+   (⊢v Δ Γ v τ_0) ...
    ----------------------------------------------- "fun"
    (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) (∀ β σ_2))]
 
   [(⊢k Δ Γ k (tcode (α ..._1) (τ ..._2) σ_1 σ_2))
    (⊢τ Δ σ) ...
-   (where Δ_0 (Δ+ Δ α ...))
    (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
    (where σ_12 (substitute* (→ σ_1 σ_2) (α ...) (σ ...)))
-   (⊢v Δ_0 Γ v τ_0) ...
+   (⊢v Δ Γ v τ_0) ...
    ----------------------------------------- "polyfun"
    (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) σ_12)])
 
@@ -228,20 +227,23 @@
 (define ⟶
   (extend-reduction-relation
    F.⟶ λF-ACC
-   (--> ((⟨ (Λ (α ...) ([x : _] ...) β e) [σ ...] (v ...) ⟩) σ_1)
+   (--> (let [x v] e)
+        (substitute e x v)
+        "ζ")
+   (--> ((⟨ (Λ (α ...) ([x : _] ...) β e) [σ ...] (v ...) ⟩) [σ_1])
         (substitute
          (substitute*
           (substitute* e (α ...) (σ ...))
           (x ...) (v ...))
          β σ_1)
-        "β")
+        "τ")
    (--> ((⟨ (λ (α ...) ([x : _] ...) (y : _) e) [σ ...] (v ...) ⟩) v_1)
         (substitute
          (substitute*
           (substitute* e (α ...) (σ ...))
           (x ...) (v ...))
          y v_1)
-        "τ")))
+        "β")))
 
 (define ⟶*
   (context-closure ⟶ λF-ACC E))
@@ -258,3 +260,30 @@
   normalize : e -> v
   [(normalize e)
    ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
+
+(module+ test
+  (define-term id-a
+    (⟨ (λ (a) () (x : a) x) (a) () ⟩))
+  (define-term id
+    (⟨ (Λ () () a id-a) () () ⟩))
+  (define-term idid-id
+    (let* ([the-id id] [the-idid (id [(∀ b (→ b b))])])
+      (the-idid the-id)))
+  (define-term app-id
+    (let (the-id id)
+      ((⟨ (λ () ([an-id : (∀ a (→ a a))]) (x : b) (an-id x)) () (id) ⟩) y)))
+
+  (test-->>
+   ⟶*
+   (term idid-id)
+   (term id))
+
+  (test-->>
+   ⇓
+   (term app-id)
+   (term (id y)))
+
+  (test-->>
+   ⇓
+   (term (⟨ (Λ () () b idid-id) () () ⟩))
+   (term (⟨ (Λ () () b id) () () ⟩))))
