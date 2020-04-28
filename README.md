@@ -15,7 +15,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ### Closure-Converted System F
 * Under construction
-* Type synthesis and reduction (almost)
+* Type synthesis and reduction
 * Compiler from ANF-restricted System F to closure-converted System F (not yet)
 
 ### System Fω (extends System F)
@@ -23,12 +23,16 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Type synthesis
 * Head normal form, normal form, and type-level reduction
 
+### `redex-chk`, but Better
+* Renames `judgment` to `judgement`
+* Adds `redex-judgement-equals-chk` to test for equivalence between judgement output term and a provided term
+
 ## TODOs
 * Add tests for ANF translation (type-preservation and correctness)
-* Add tests for ACC reduction
+* Add tests for F-ACC reduction
 * Implement abstract closure conversion from F-ANF to F-ACC
-* Fix ambiguity of ANF evaluation context
+* Fix ambiguity of ANF let-evaluation context
 * Add evaluation context for call-by-name evaluation (all)
 * Finish Church encodings (F)
-* Add inventory of metafunctions to this README
+* Add inventory of metafunctions and how to run things to this README
 * Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (redex-chk)

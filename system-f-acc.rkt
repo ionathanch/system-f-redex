@@ -30,15 +30,15 @@
   (v ::= x (⟨ k [σ ...] (v ...) ⟩)) ;; Values (incl. closures)
 
   (F ::= E ;; Evaluation contexts (under closures)
-       (⟨ F [σ ...] (v ...) ⟩)
-       (Λ (α ...) ([x : τ] ...) β F)
-       (λ (α ...) ([x : τ] ...) (y : σ) F))
+     (⟨ F [σ ...] (v ...) ⟩)
+     (Λ (α ...) ([x : τ] ...) β F)
+     (λ (α ...) ([x : τ] ...) (y : σ) F))
 
   ;; Redex complains about the colon being used at different depths in the following
   #;(λ (α ...)
-    ([x : τ] ...) #:refers-to (shadow α ...)
-    (y : σ) #:refers-to (shadow α ...)
-    e #:refers-to (shadow α ... x ... y))
+      ([x : τ] ...) #:refers-to (shadow α ...)
+      (y : σ) #:refers-to (shadow α ...)
+      e #:refers-to (shadow α ... x ... y))
   ;; so instead we treat the bindings separately and export the variables
 
   (b ::= ([x : τ] ...)) ;; Bindings
@@ -229,10 +229,18 @@
   (extend-reduction-relation
    F.⟶ λF-ACC
    (--> ((⟨ (Λ (α ...) ([x : _] ...) β e) [σ ...] (v ...) ⟩) σ_1)
-        () ;; TODO: e[σ/α]...[v/x]...[σ_1/β]
+        (substitute
+         (substitute*
+          (substitute* e (α ...) (σ ...))
+          (x ...) (v ...))
+         β σ_1)
         "β")
    (--> ((⟨ (λ (α ...) ([x : _] ...) (y : _) e) [σ ...] (v ...) ⟩) v_1)
-        () ;; TODO: e[σ/α]...[v/x][v_1/y]
+        (substitute
+         (substitute*
+          (substitute* e (α ...) (σ ...))
+          (x ...) (v ...))
+         y v_1)
         "τ")))
 
 (define ⟶*

@@ -1,7 +1,7 @@
 #lang racket
 
 (require (rename-in redex/reduction-semantics
-                    [judgment-holds                judgement-holds])
+                    [judgment-holds judgement-holds])
          (only-in rackunit check-true)
          (rename-in redex-chk
                     [redex-judgment-holds-chk redex-judgement-holds-chk]))
