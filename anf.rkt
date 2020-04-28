@@ -4,8 +4,7 @@
          (prefix-in t. "./system-f-anf.rkt")
          (rename-in redex/reduction-semantics
                     [define-judgment-form define-judgement-form]
-                    [judgment-holds       judgement-holds])
-         redex/gui)
+                    [judgment-holds       judgement-holds]))
 
 (module+ test
   (require "./redex-chk.rkt"))
@@ -13,7 +12,7 @@
 (define-union-language λANF s.λF t.λF-ANF)
 
 ;; [τ] ↦ τ
-;; In System F, this does nothing.
+;; In ANF, this does nothing.
 (define-judgement-form λANF
   #:contract (↦τ τ τ)
   #:mode (↦τ I O)

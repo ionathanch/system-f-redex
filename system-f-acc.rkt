@@ -29,7 +29,6 @@
 
   (v ::= x (⟨ k [σ ...] (v ...) ⟩)) ;; Values (incl. closures)
 
-  (E ::= hole (let (x hole) e))
   (F ::= E ;; Evaluation contexts (under closures)
      (⟨ F [σ ...] (v ...) ⟩)
      (Λ (α ...) ([x : τ] ...) β F)

@@ -25,10 +25,11 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Adds `redex-judgement-equals-chk` to test for equivalence between judgement output term and a provided term
 
 ## TODOs
-* Add tests for ANF translation (type-preservation and correctness)
-* Implement abstract closure conversion from F-ANF to F-ACC
+* Add tests for ANF translation (type preservation and correctness)
+* Finish ACC translations of `fun` and `polyfun`; add tests (type preservation and correctness)
 * Fix ambiguity of ANF let-evaluation context
 * Add evaluation context for call-by-name, normal order evaluation (all)
 * Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README
 * Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (redex-chk)
+
