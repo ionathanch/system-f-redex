@@ -24,6 +24,9 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Renames `judgment` to `judgement`
 * Adds `redex-judgement-equals-chk` to test for equivalence between judgement output term and a provided term
 
+### Reduction Strategies
+* This doesn't belong here
+
 ## TODOs
 * Add tests for ANF translation (type preservation and correctness)
 * Finish ACC translations of `fun` and `polyfun`; add tests (type preservation and correctness)
