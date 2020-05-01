@@ -253,6 +253,12 @@
              (∘ z)) y)) x)) w)
     a]))
 
+(define-metafunction λF-ANF
+  infer : e -> τ
+  [(infer e)
+   τ
+   (judgement-holds (⊢e · · e τ))])
+
 
 ;; Dynamic Semantics
 
@@ -301,7 +307,12 @@
   (test-->>
    ⇓
    (term (λ (x : a) ((λ (y : b) y) x)))
-   (term (λ (x : a) x))))
+   (term (λ (x : a) x)))
+  ;; TODO: Fix reduction so this test passes
+  #;(test-->>
+   ⇓
+   (term (λ* ([x : a] [f : (→ a a)]) (let [y (f x)] y)))
+   (term (λ* ([x : a] [f : (→ a a)]) (f x)))))
 
 ;; Continuation plugging
 ;; a computation into a hole

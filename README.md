@@ -28,7 +28,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Add tests for ANF translation (type preservation and correctness)
+* Fix reduction in F and F-ANF so that normalization occurs beneath let expressions
 * Finish ACC translations of `fun` and `polyfun`; add tests (type preservation and correctness)
 * Fix ambiguity of ANF let-evaluation context
 * Add evaluation context for call-by-name, normal order evaluation (all)

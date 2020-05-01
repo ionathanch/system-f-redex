@@ -226,6 +226,12 @@
     (→ b (∀ α (→ α b)))] ;; α
    [(let [x (Λ a (λ (y : a) y))] (@ x [(∀ a (→ a a))] x)) (∀ a (→ a a))]))
 
+(define-metafunction λF
+  infer : e -> τ
+  [(infer e)
+   τ
+   (judgement-holds (⊢ · · e τ))])
+
 
 ;; Dynamic Semantics
 
@@ -286,7 +292,12 @@
   (test-->>
    ⇓
    (term (λ (x : a) ((λ (y : b) y) x)))
-   (term (λ (x : a) x))))
+   (term (λ (x : a) x)))
+  ;; TODO: Fix reduction so this test passes
+  #;(test-->>
+   ⇓
+   (term (λ* ([x : a] [f : (→ a a)]) (let [y (f x)] y)))
+   (term (λ* ([x : a] [f : (→ a a)]) (f x)))))
 
 
 ;; Church Encoding

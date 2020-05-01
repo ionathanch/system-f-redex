@@ -10,6 +10,29 @@
   (require "./redex-chk.rkt"))
 
 (define-union-language λANF s.λF t.λF-ANF)
+(default-language λANF)
+
+;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
+;; where (L ::= λ Λ) (a ::= [x : τ] α)
+(define-metafunction/extension t.λ* λANF
+  λ* : (any ...) e -> e)
+
+;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
+;; where (a ::= e [τ])
+(define-metafunction/extension s.@ λANF
+  @ : any ... -> e)
+
+;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
+(define-metafunction/extension t.let* λANF
+  let* : ([x e] ...) e -> e)
+
+;; Unroll (τ_1 → ... → τ_n) into (τ_1 → (... → τ_n))
+(define-metafunction/extension t.→* λANF
+  →* : τ ... τ -> τ)
+
+;; Unroll (∀* (α_1 ... a_n) τ) as (∀ α_1 ... (∀ α_n τ))
+(define-metafunction/extension t.∀* λANF
+  ∀* : (α ...) τ -> τ)
 
 ;; [τ] ↦ τ
 ;; In ANF, this does nothing.
@@ -104,3 +127,56 @@
   [(compile e)
    ,(first (apply-reduction-relation* ⟶* (term e_anf) #:cache-all? #t))
    (judgement-holds (↦ e ∘ e_anf))])
+
+(module+ test
+  (define-term id-id
+    (@ (λ* (a [x : a]) x)
+       [(∀ b (→ b b))]
+       (λ* (a [x : a]) x)))
+
+  (define-term id-id-ANF
+    (let* ([u (Λ a (λ (x : a) x))]
+           [v (u [(∀ b (→ b b))])]
+           [w (Λ a (λ (x : a) x))])
+      (v w)))
+
+  (define-term id-id-compiled
+    (compile id-id))
+
+  (redex-chk
+   #:eq id-id-compiled id-id-ANF
+   #:eq (t.infer id-id-compiled) (s.infer id-id)
+   #:eq (t.normalize id-id-compiled) (s.normalize id-id))
+
+  (define-term bool
+    (∀ b (→* b b b)))
+  (define-term true
+    (λ* (a [x : a] [y : a]) x))
+  (define-term false
+    (λ* (a [x : a] [y : a]) y))
+  (define-term if-bool
+    (λ* (a [t : a] [f : a] [b : bool]) (@ b [a] t f)))
+  (define-term neg
+    (@ if-bool [bool] false true))
+
+  (define-term neg-compiled
+    (compile neg))
+
+  (define-term if-bool-ANF
+    (λ* (a [t : a] [f : a] [b : bool])
+        (let* ([ba (b [a])]
+               [bat (ba t)])
+          (bat f))))
+  (define-term neg-ANF
+    (let* ([ifb if-bool-ANF]
+           [ifbb (ifb [bool])]
+           [f false]
+           [ifbbf (ifbb f)]
+           [t true])
+      (ifbbf t)))
+
+  (redex-chk
+   #:eq neg-compiled neg-ANF
+   #:eq (t.infer neg-compiled) (s.infer neg)
+   ;; TODO: Normalization needs to be fixed before this test passes
+   #;(#:eq (t.normalize neg-compiled) (s.normalize neg))))
