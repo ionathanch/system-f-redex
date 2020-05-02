@@ -128,6 +128,12 @@
    ,(first (apply-reduction-relation* ⟶* (term e_anf) #:cache-all? #t))
    (judgement-holds (↦ e ∘ e_anf))])
 
+(define-metafunction λANF
+  compile-type : τ -> τ
+  [(compile-type τ)
+   τ_anf
+   (judgement-holds (↦τ τ τ_anf))])
+
 (module+ test
   (define-term id-id
     (@ (λ* (a [x : a]) x)
@@ -145,7 +151,7 @@
 
   (redex-chk
    #:eq id-id-compiled id-id-ANF
-   #:eq (t.infer id-id-compiled) (s.infer id-id)
+   #:eq (t.infer id-id-compiled) (compile-type (s.infer id-id))
    #:eq (t.normalize id-id-compiled) (s.normalize id-id))
 
   (define-term bool
@@ -177,5 +183,17 @@
 
   (redex-chk
    #:eq neg-compiled neg-ANF
-   #:eq (t.infer neg-compiled) (s.infer neg)
-   #:eq (t.normalize neg-compiled) (s.normalize neg)))
+   #:eq (t.infer neg-compiled) (compile-type (s.infer neg))
+   #:eq (t.normalize neg-compiled) (s.normalize neg))
+
+  #;(for ([_ (range 10)])
+    (redex-let* λANF
+      ([(⊢ · · e_F τ_F) (generate-term s.λF #:satisfying (s.⊢ · · e τ) 10)] ;; source term and its type
+       [e_ANF (term (compile e_F))] ;; compiled term
+       [τ_compiled (term (compile-type τ_F))] ;; compiled type
+       [τ_ANF (term (t.infer e_ANF))] ;; type of compiled term
+       [v_F (term (s.normalize e_F))]
+       [v_ANF (term (t.normalize e_ANF))])
+      (redex-chk
+       #:eq τ_compiled τ_ANF ;; · · ⊢ e : τ ⇒ · · ⊢ [e] : [τ]
+       #:eq v_F v_ANF))))
