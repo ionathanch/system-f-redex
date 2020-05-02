@@ -15,7 +15,8 @@
 ;; Syntax
 
 (define-language λF
-  (x α ::= variable-not-otherwise-mentioned) ;; Term and type variables
+  (α β ::= variable-not-otherwise-mentioned) ;; Type variables
+  (x y ::= variable-not-otherwise-mentioned) ;; Term variables
   (τ σ ::= α (→ τ τ) (∀ α τ)) ;; Types
   (e   ::= x (λ (x : τ) e) (e e) (Λ α e) (e [τ]) (let [x e] e)) ;; Terms
 

@@ -46,14 +46,16 @@
 
   [(↦τ σ σ_1)
    (⊢e Δ (Γ (x : σ_1)) e_s ↦ e_t σ_2)
-   ;; TODO: FTVs, FVs
-   ------------------------------- "fun"
-   (⊢v Δ Γ (λ (x : σ) e_s) ↦ (⟨ (λ () () (x : σ_1) e_t) () () ⟩) (→ σ_1 σ_2))]
+   (where (β ...) (free-type-vars (λ (x : σ) e_s)))
+   (where (y ...) (free-vars (λ (x : σ) e_s)))
+   ----------------------------------------------------------------------------------------------- "fun"
+   (⊢v Δ Γ (λ (x : σ) e_s) ↦ (⟨ (λ (β ...) (y ...) (x : σ_1) e_t) (β ...) (y ...) ⟩) (→ σ_1 σ_2))]
 
   [(⊢e (Δ α) Γ e_s ↦ e_t σ)
-   ;; TODO: FTVs, FVs
-   ---------------------------------------------------------- "polyfun"
-   (⊢v Δ Γ (Λ α e_s) ↦ (⟨ (Λ () () α e_t) () () ⟩) (∀ α σ))])
+   (where (β ...) (free-type-vars (Λ α e_s)))
+   (where (y ...) (free-vars (Λ α e_s)))
+   ----------------------------------------------------------------------------- "polyfun"
+   (⊢v Δ Γ (Λ α e_s) ↦ (⟨ (Λ (β ...) (y ...) α e_t) (β ...) (y ...) ⟩) (∀ α σ))])
 
 ;; Δ Γ ⊢ c ↦ c : τ
 ;; Trivial transformation
@@ -94,3 +96,73 @@
   compile : e -> e
   [(compile e_s)
    e_t (judgement-holds (⊢e · · e_s ↦ e_t _))])
+
+
+;; Metafunctions
+
+;; The following metafunctions are neither desugaring ones
+;; nor convenience evaluation ones, and are nontrivial
+
+;; Returns free type variables in given type or term
+(define-metafunction s.λF-ANF
+  free-type-vars : any -> (α ...)
+  [(free-type-vars α) (α)]
+  [(free-type-vars (→ σ τ))
+   (α ... β ...)
+   (where (α ...) (free-type-vars σ))
+   (where (β ...) (free-type-vars τ))]
+  [(free-type-vars (∀ β τ))
+   (- (α ...) (β))
+   (where (α ...) (free-type-vars τ))]
+  [(free-type-vars x) ()]
+  [(free-type-vars (λ (_ : _) e))
+   (α_τ ... α_e ...)
+   (where (α_τ ...) (free-type-vars τ))
+   (where (α_e ...) (free-type-vars e))]
+  [(free-type-vars (Λ β e))
+   (- (α ...) (β))
+   (where (α ...) (free-type-vars e))]
+  [(free-type-vars (v_1 v_2))
+   (α_1 ... α_2 ...)
+   (where (α_1 ...) (free-type-vars v_1))
+   (where (α_2 ...) (free-type-vars v_2))]
+  [(free-type-vars (v [β]))
+   (β α ...)
+   (where (α ...) (free-type-vars v))]
+  [(free-type-vars (let (_ c) e))
+   (α_c ... α_e ...)
+   (where (α_c ...) (free-type-vars c))
+   (where (α_e ...) (free-type-vars e))])
+
+;; Returns free term variables in given term
+(define-metafunction s.λF-ANF
+  free-vars : e -> (x ...)
+  [(free-vars x) (x)]
+  [(free-vars (λ (y : _) e))
+   (- (x ...) (y))
+   (where (x ...) (free-type-vars e))]
+  [(free-vars (Λ _ e))
+   (free-vars e)]
+  [(free-vars (v_1 v_2))
+   (x_1 ... x_2 ...)
+   (where (x_1 ...) (free-vars v_1))
+   (where (x_2 ...) (free-vars v_2))]
+  [(free-vars (v [_]))
+   (free-vars v)]
+  [(free-vars (let (y c) e))
+   (x_c ... x_e ...)
+   (where (x_c ...) (free-vars c))
+   (where (x_ey ...) (free-vars e))
+   (where (x_e ...) (- (x_ey ...) (y)))])
+
+;; Removes the variables in the second list from the first list
+;; Literally copied directly from the Redex docs
+;; https://docs.racket-lang.org/redex/The_Redex_Reference.html#%28form._%28%28lib._redex%2Freduction-semantics..rkt%29._define-metafunction%29%29
+(define-metafunction s.λF-ANF
+  - : (x ...) (x ...) -> (x ...)
+  [(- (x ...) ()) (x ...)]
+  [(- (x_1 ... x_2 x_3 ...) (x_2 x_4 ...))
+   (- (x_1 ... x_3 ...) (x_2 x_4 ...))
+   (side-condition (not (memq (term x_2) (term (x_3 ...)))))]
+  [(- (x_1 ...) (x_2 x_3 ...))
+   (- (x_1 ...) (x_3 ...))])

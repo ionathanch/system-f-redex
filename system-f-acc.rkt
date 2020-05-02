@@ -17,8 +17,6 @@
 ;; Syntax
 
 (define-extended-language λF-ACC λF-ANF
-  (y β ::= variable-not-otherwise-mentioned) ;; More variable nonterminals
-
   (τ σ ::= .... ;; Types
      (vcode (α ...) (τ ...) β σ)  ;; ∀ (α ...). τ → ... → ∀ α. τ
      (tcode (α ...) (τ ...) σ σ)) ;; ∀ (α ...). τ → ... → τ → τ
@@ -212,17 +210,6 @@
 
 ;; Dynamic Semantics
 
-(define-metafunction λF-ACC
-  substitute** : (any ..._0) (x ..._1) (any ..._1) -> (any ..._0)
-  [(substitute** (any ...) any_var any_val)
-   ((substitute* any any_var any_val) ...)])
-
-(define-metafunction λF-ACC
-  substitute* : any (x ..._1) (any ..._1) -> any
-  [(substitute* any () ()) any]
-  [(substitute* any (x_0 x_r ...) (any_0 any_r ...))
-   (substitute* (substitute any x_0 any_0) (x_r ...) (any_r ...))])
-
 (define ⟶
   (extend-reduction-relation
    F.⟶ λF-ACC
@@ -286,3 +273,25 @@
    ⇓
    (term (⟨ (Λ () () b idid-id) () () ⟩))
    (term (⟨ (Λ () () b id) () () ⟩))))
+
+
+;; Metafunctions
+
+;; The following metafunctions are neither desugaring ones
+;; nor convenience evaluation ones, and are nontrivial
+;; to both static and dynamic semantics
+
+;; (substitute** (τ_0 ... τ_n) (α ...) (σ ...))
+;; Returns (τ_0[σ .../α ...] ... τ_n[σ .../α ...])
+(define-metafunction λF-ACC
+  substitute** : (τ ..._0) (x ..._1) (any ..._1) -> (any ..._0)
+  [(substitute** (τ ...) any_var any_val)
+   ((substitute* τ any_var any_val) ...)])
+
+;; (substitute* e (x ...) (v ...)) or (substitute* e (α ...) (σ ...))
+;; Returns e[v_1/x_1]...[v_n/x_n], also denoted e[v_1 .../x_1 ...]
+(define-metafunction λF-ACC
+  substitute* : any (x ..._1) (any ..._1) -> any
+  [(substitute* any () ()) any]
+  [(substitute* any (x_0 x_r ...) (any_0 any_r ...))
+   (substitute* (substitute any x_0 any_0) (x_r ...) (any_r ...))])
