@@ -178,5 +178,4 @@
   (redex-chk
    #:eq neg-compiled neg-ANF
    #:eq (t.infer neg-compiled) (s.infer neg)
-   ;; TODO: Normalization needs to be fixed before this test passes
-   #;(#:eq (t.normalize neg-compiled) (s.normalize neg))))
+   #:eq (t.normalize neg-compiled) (s.normalize neg)))

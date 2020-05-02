@@ -23,8 +23,8 @@
   (Γ   ::= · (Γ (x : τ))) ;; Term contexts
 
   (v   ::= x (λ (x : τ) e) (Λ α e)) ;; Values
-  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e)) ;; Evaluation contexts (call-by-value)
-  (F   ::= E (λ (x : τ) F) (Λ α F)) ;; Evaluation contexts (normal form)
+  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e)) ;; Evaluation contexts
+  (F   ::= E (λ (x : τ) F) (Λ α F)) ;; Evaluation contexts (normalization)
 
   #:binding-forms
   (λ (x : τ) e #:refers-to x)
@@ -258,13 +258,19 @@
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
+;; We let ((x v) ... v) be a value as well
+;; in order to reduce the inside of lambdas
+(define-extended-language λF⇓ λF
+  (app ::= x (app v) (app [τ]))
+  (v ::= .... app))
+
 ;; Compatible closure of ⟶
 ;; including under lambdas
 (define ⇓
-  (context-closure ⟶ λF F))
+  (context-closure ⟶ λF⇓ F))
 
 ;; Reflexive, transitive closure of ⇓
-(define-metafunction λF
+(define-metafunction λF⇓
   normalize : e -> v
   [(normalize e)
    ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
@@ -293,11 +299,14 @@
    ⇓
    (term (λ (x : a) ((λ (y : b) y) x)))
    (term (λ (x : a) x)))
-  ;; TODO: Fix reduction so this test passes
-  #;(test-->>
+  (test-->>
    ⇓
    (term (λ* ([x : a] [f : (→ a a)]) (let [y (f x)] y)))
-   (term (λ* ([x : a] [f : (→ a a)]) (f x)))))
+   (term (λ* ([x : a] [f : (→ a a)]) (f x))))
+  (test-->
+   ⇓
+   (term ((λ (x : a) x) (@ z [a] (λ (y : b) y))))
+   (term (@ z [a] (λ (y : b) y)))))
 
 
 ;; Church Encoding

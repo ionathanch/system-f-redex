@@ -17,13 +17,14 @@
 ;; Syntax
 
 (define-extended-language λF-ANF λF
-  (c   ::= v (v v) (v [τ])) ;; Computations
-  (e   ::= c (let [x c] e)) ;; Configurations
-  
-  (E   ::= hole (let [x hole] e)) ;; Evaluation contexts
+  (v ::= x (λ (x : τ) e) (Λ α e)) ;; Values
+  (c ::= v (v v) (v [τ])) ;; Computations
+  (e ::= c (let [x c] e)) ;; Configurations
 
-  (K   ::= ∘ (let [x ∘] e)) ;; Continuations
-  (k   ::= (∘ c) ((let [x ∘] k) c)) ;; Continuation expressions
+  (E ::= hole (let [x hole] e)) ;; Evaluation contexts
+
+  (K ::= ∘ (let [x ∘] e)) ;; Continuations
+  (k ::= (∘ c) ((let [x ∘] k) c)) ;; Continuation expressions
 
   #:binding-forms
   (let [x ∘] e #:refers-to x))
@@ -274,10 +275,17 @@
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
-(define ⇓
-  (context-closure ⟶ λF-ANF F))
+;; The notion of a value being something for which no more computation can occur
+;; is somewhat at odds with the notion of a value being something that cannot
+;; be reduced any further from the perspective of normalization
+(define-extended-language λF-ANF⇓ λF-ANF
+  (app ::= x (app v) (app [τ]))
+  (v ::= .... app))
 
-(define-metafunction λF-ANF
+(define ⇓
+  (context-closure ⟶ λF-ANF⇓ F))
+
+(define-metafunction λF-ANF⇓
   normalize : e -> v
   [(normalize e)
    ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
@@ -308,11 +316,14 @@
    ⇓
    (term (λ (x : a) ((λ (y : b) y) x)))
    (term (λ (x : a) x)))
-  ;; TODO: Fix reduction so this test passes
-  #;(test-->>
+  (test-->>
    ⇓
    (term (λ* ([x : a] [f : (→ a a)]) (let [y (f x)] y)))
-   (term (λ* ([x : a] [f : (→ a a)]) (f x)))))
+   (term (λ* ([x : a] [f : (→ a a)]) (f x))))
+  (test-->
+   ⇓
+   (term ((λ (x : a) x) ((z [a]) (λ (y : b) y))))
+   (term ((z [a]) (λ (y : b) y)))))
 
 ;; Continuation plugging
 ;; a computation into a hole
