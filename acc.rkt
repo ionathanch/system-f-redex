@@ -10,6 +10,8 @@
 (module+ test
   (require "./redex-chk.rkt"))
 
+(provide compile)
+
 ;; ABSTRACT CLOSURE CONVERSION ;;
 
 (define-union-language λACC s.λF-ANF t.λF-ACC)

@@ -11,10 +11,9 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Continuation-plugging
 * Compiler from System F to ANF-restricted System F
 
-### Closure-Converted System F
-* Under construction
+### (ANF-Restricted) System F with Closures
 * Type synthesis, term evaluation
-* Compiler from ANF-restricted System F to closure-converted System F (not yet)
+* Compiler from ANF-restricted System F to closure-converted System F
 
 ### System Fω (extends System F)
 * Why? I don't know.
@@ -28,10 +27,9 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Fix reduction in F-ACC so that normalization occurs beneath let expressions
-* Finish ACC translations of `fun` and `polyfun`; add tests (type preservation and correctness)
+* Implement hoisting pass!
 * Fix ambiguity of ANF let-evaluation context
-* Add evaluation context for call-by-name, normal order evaluation (all)
+* Add evaluation context for call-by-name, normal order evaluation (why? CBN doesn't follow the "intuitive" notion of how a program runs)
 * Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README
 * Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (redex-chk)

@@ -9,6 +9,8 @@
 (module+ test
   (require "./redex-chk.rkt"))
 
+(provide compile)
+
 ;; A-NORMAL FORM TRANSLATION ;;
 
 (define-union-language λANF s.λF t.λF-ANF)
