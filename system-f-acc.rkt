@@ -12,7 +12,7 @@
 
 (provide (all-defined-out))
 
-;; CLOSURE-CONVERTED SYSTEM F ;;
+;; (ANF-RESTRICTED) SYSTEM F with ABSTRACT CLOSURES ;;
 
 ;; Syntax
 

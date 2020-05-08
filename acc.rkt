@@ -10,7 +10,10 @@
 (module+ test
   (require "./redex-chk.rkt"))
 
+;; ABSTRACT CLOSURE CONVERSION ;;
+
 (define-union-language λACC s.λF-ANF t.λF-ACC)
+(default-language λACC)
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
@@ -38,6 +41,11 @@
 (define-extended-judgement-form λACC t.∈Γ
   #:contract (∈Γ x τ Γ)
   #:mode (∈Γ I O I))
+
+
+;; ACC Translation Judgement
+;; Note that the translation is defined over the typing rules for ANF
+;; because it needs to know the types of the free variables
 
 ;; [τ] ↦ τ
 ;; In ACC, this does nothing.
@@ -116,6 +124,9 @@
    -------------------------------------------------- "let"
    (⊢e Δ Γ (let [x c_s] e_s) ↦ (let [x c_t] e_t) τ)])
 
+
+;; Compilation Convenience Metafunctions
+
 (define-metafunction λACC
   compile : e -> e
   [(compile e_s)
@@ -164,7 +175,7 @@
    #;(#:eq (t.normalize const-compiled) (s.normalize const))))
 
 
-;; Metafunctions
+;; Other Metafunctions
 
 ;; The following metafunctions are neither desugaring ones
 ;; nor convenience evaluation ones, and are nontrivial

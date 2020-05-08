@@ -9,6 +9,8 @@
 (module+ test
   (require "./redex-chk.rkt"))
 
+;; A-NORMAL FORM TRANSLATION ;;
+
 (define-union-language λANF s.λF t.λF-ANF)
 (default-language λANF)
 
@@ -33,6 +35,9 @@
 ;; Unroll (∀* (α_1 ... a_n) τ) as (∀ α_1 ... (∀ α_n τ))
 (define-metafunction/extension t.∀* λANF
   ∀* : (α ...) τ -> τ)
+
+
+;; ANF Translation Judgement
 
 ;; [τ] ↦ τ
 ;; In ANF, this does nothing.
@@ -97,6 +102,9 @@
    (↦ e_1s K_1 e_1t)
    ------------------------------- "let"
    (↦ (let [x e_1s] e_2s) K e_1t)])
+
+
+;; Compilation Convenience Metafunctions
 
 ;; Eliminate redundant bindings:
 ;; - (let [x_1 x_2] e) ⟶ e[x_2/x_1]
