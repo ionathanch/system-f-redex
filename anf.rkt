@@ -19,7 +19,7 @@
 
 ;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
 ;; where (a ::= e [τ])
-(define-metafunction/extension s.@ λANF
+(define-metafunction/extension t.@ λANF
   @ : any ... -> e)
 
 ;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))

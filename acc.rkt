@@ -12,6 +12,28 @@
 
 (define-union-language λACC s.λF-ANF t.λF-ACC)
 
+;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
+;; where (L ::= λ Λ) (a ::= [x : τ] α)
+(define-metafunction/extension t.λ* λACC
+  λ* : (any ...) e -> e)
+
+;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
+;; where (a ::= e [τ])
+(define-metafunction/extension t.@ λACC
+  @ : any ... -> e)
+
+;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
+(define-metafunction/extension t.let* λACC
+  let* : ([x e] ...) e -> e)
+
+;; Unroll (τ_1 → ... → τ_n) into (τ_1 → (... → τ_n))
+(define-metafunction/extension t.→* λACC
+  →* : τ ... τ -> τ)
+
+;; Unroll (∀* (α_1 ... a_n) τ) as (∀ α_1 ... (∀ α_n τ))
+(define-metafunction/extension t.∀* λACC
+  ∀* : (α ...) τ -> τ)
+
 ;; (x : τ) ∈ Γ
 (define-extended-judgement-form λACC t.∈Γ
   #:contract (∈Γ x τ Γ)
@@ -46,16 +68,18 @@
 
   [(↦τ σ σ_1)
    (⊢e Δ (Γ (x : σ_1)) e_s ↦ e_t σ_2)
-   (where (β ...) (free-type-vars (λ (x : σ) e_s)))
+   (where (β ...) (free-type-vars-term (λ (x : σ) e_s)))
    (where (y ...) (free-vars (λ (x : σ) e_s)))
+   (⊢v Δ Γ y ↦ y τ) ...
    ----------------------------------------------------------------------------------------------- "fun"
-   (⊢v Δ Γ (λ (x : σ) e_s) ↦ (⟨ (λ (β ...) (y ...) (x : σ_1) e_t) (β ...) (y ...) ⟩) (→ σ_1 σ_2))]
+   (⊢v Δ Γ (λ (x : σ) e_s) ↦ (⟨ (λ (β ...) ([y : τ] ...) (x : σ_1) e_t) (β ...) (y ...) ⟩) (→ σ_1 σ_2))]
 
   [(⊢e (Δ α) Γ e_s ↦ e_t σ)
-   (where (β ...) (free-type-vars (Λ α e_s)))
+   (where (β ...) (free-type-vars-term (Λ α e_s)))
    (where (y ...) (free-vars (Λ α e_s)))
+   (⊢v Δ Γ y ↦ y τ) ...
    ----------------------------------------------------------------------------- "polyfun"
-   (⊢v Δ Γ (Λ α e_s) ↦ (⟨ (Λ (β ...) (y ...) α e_t) (β ...) (y ...) ⟩) (∀ α σ))])
+   (⊢v Δ Γ (Λ α e_s) ↦ (⟨ (Λ (β ...) ([y : τ] ...) α e_t) (β ...) (y ...) ⟩) (∀ α σ))])
 
 ;; Δ Γ ⊢ c ↦ c : τ
 ;; Trivial transformation
@@ -97,42 +121,88 @@
   [(compile e_s)
    e_t (judgement-holds (⊢e · · e_s ↦ e_t _))])
 
+(define-metafunction λACC
+  compile-type : τ -> τ
+  [(compile-type τ_s)
+   τ_t (judgement-holds (↦τ τ_s τ_t))])
+
+(module+ test
+  (define-term id
+    (λ* (a [x : a]) x))
+
+  (define-term const
+    (λ* (a b [x : a] [y : b]) x))
+
+  (define-term id-ACC
+    (⟨ (Λ () () a
+          (⟨ (λ (a) () (x : a) x) (a) () ⟩))
+       () () ⟩))
+
+  (define-term const-ACC
+    (⟨ (Λ () () a
+          (⟨ (Λ (a) () b
+                (⟨ (λ (a b) () (x : a)
+                     (⟨ (λ (b) ([x : a]) (y : b) x)
+                        (b) (x) ⟩))
+                   (a b) () ⟩))
+             (a) () ⟩))
+       () () ⟩))
+
+  (define-term id-compiled
+    (compile id))
+  (define-term const-compiled
+    (compile const))
+
+  (redex-chk
+   #:eq id-compiled id-ACC
+   #:eq (t.infer id-compiled) (compile-type (s.infer id))
+   #;(#:eq (t.normalize id-compiled) (s.normalize id)))
+
+  (redex-chk
+   #:eq const-compiled const-ACC
+   #:eq (t.infer const-compiled) (compile-type (s.infer const))
+   #;(#:eq (t.normalize const-compiled) (s.normalize const))))
+
 
 ;; Metafunctions
 
 ;; The following metafunctions are neither desugaring ones
 ;; nor convenience evaluation ones, and are nontrivial
 
-;; Returns free type variables in given type or term
+;; Returns free type variables in given type
 (define-metafunction s.λF-ANF
-  free-type-vars : any -> (α ...)
-  [(free-type-vars α) (α)]
-  [(free-type-vars (→ σ τ))
+  free-type-vars-type : τ -> (α ...)
+  [(free-type-vars-type α) (α)]
+  [(free-type-vars-type (→ σ τ))
    (α ... β ...)
-   (where (α ...) (free-type-vars σ))
-   (where (β ...) (free-type-vars τ))]
-  [(free-type-vars (∀ β τ))
+   (where (α ...) (free-type-vars-type σ))
+   (where (β ...) (free-type-vars-type τ))]
+  [(free-type-vars-type (∀ β τ))
    (- (α ...) (β))
-   (where (α ...) (free-type-vars τ))]
-  [(free-type-vars x) ()]
-  [(free-type-vars (λ (_ : _) e))
+   (where (α ...) (free-type-vars-type τ))])
+
+;; Returns free type variables in given term
+(define-metafunction s.λF-ANF
+  free-type-vars-term : any -> (α ...)
+  [(free-type-vars-term x) ()]
+  [(free-type-vars-term (λ (_ : τ) e))
    (α_τ ... α_e ...)
-   (where (α_τ ...) (free-type-vars τ))
-   (where (α_e ...) (free-type-vars e))]
-  [(free-type-vars (Λ β e))
+   (where (α_τ ...) (free-type-vars-type τ))
+   (where (α_e ...) (free-type-vars-term e))]
+  [(free-type-vars-term (Λ β e))
    (- (α ...) (β))
-   (where (α ...) (free-type-vars e))]
-  [(free-type-vars (v_1 v_2))
+   (where (α ...) (free-type-vars-term e))]
+  [(free-type-vars-term (v_1 v_2))
    (α_1 ... α_2 ...)
-   (where (α_1 ...) (free-type-vars v_1))
-   (where (α_2 ...) (free-type-vars v_2))]
-  [(free-type-vars (v [β]))
+   (where (α_1 ...) (free-type-vars-term v_1))
+   (where (α_2 ...) (free-type-vars-term v_2))]
+  [(free-type-vars-term (v [β]))
    (β α ...)
-   (where (α ...) (free-type-vars v))]
-  [(free-type-vars (let (_ c) e))
+   (where (α ...) (free-type-vars-term v))]
+  [(free-type-vars-term (let (_ c) e))
    (α_c ... α_e ...)
-   (where (α_c ...) (free-type-vars c))
-   (where (α_e ...) (free-type-vars e))])
+   (where (α_c ...) (free-type-vars-term c))
+   (where (α_e ...) (free-type-vars-term e))])
 
 ;; Returns free term variables in given term
 (define-metafunction s.λF-ANF
@@ -140,7 +210,7 @@
   [(free-vars x) (x)]
   [(free-vars (λ (y : _) e))
    (- (x ...) (y))
-   (where (x ...) (free-type-vars e))]
+   (where (x ...) (free-vars e))]
   [(free-vars (Λ _ e))
    (free-vars e)]
   [(free-vars (v_1 v_2))

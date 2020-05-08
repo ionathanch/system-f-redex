@@ -74,6 +74,12 @@
 (define-metafunction/extension F.λ* λF-ACC
   λ* : (any ...) e -> e)
 
+;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
+;; where (a ::= e [τ])
+;; The output technically isn't valid ANF but it's useful to have
+(define-metafunction/extension F.@ λF-ACC
+  @ : any ... -> any)
+
 ;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
 (define-metafunction/extension F.let* λF-ACC
   let* : ([x e] ...) e -> e)
@@ -198,14 +204,59 @@
    [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
 
 ;; Δ Γ ⊢ c : τ
-(define-extended-judgement-form λF-ACC F.⊢c
+(define-judgement-form λF-ACC
   #:contract (⊢c Δ Γ c τ)
-  #:mode (⊢c I I I O))
+  #:mode (⊢c I I I O)
+
+  [(⊢v Δ Γ v τ)
+   ------------- "val"
+   (⊢c Δ Γ v τ)]
+
+  [(⊢v Δ Γ v_2 σ)
+   (⊢v Δ Γ v_1 (→ σ τ))
+   --------------------- "app"
+   (⊢c Δ Γ (v_1 v_2) τ)]
+
+  [(⊢τ Δ σ)
+   (⊢v Δ Γ v (∀ α τ))
+   ------------------------------------ "polyapp"
+   (⊢c Δ Γ (v [σ]) (substitute τ α σ))])
+
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢c (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(⟨ (Λ (a) ([x : a]) c x) [(∀ b b)] (y) ⟩) (∀ α (∀ β β))])
+  (redex-judgement-equals-chk
+   (⊢c (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
 
 ;; Δ Γ ⊢ e : τ
-(define-extended-judgement-form λF-ACC F.⊢e
+(define-judgement-form λF-ACC
   #:contract (⊢e Δ Γ e τ)
-  #:mode (⊢e I I I O))
+  #:mode (⊢e I I I O)
+
+  [(⊢c Δ Γ c τ)
+   ------------- "comp"
+   (⊢e Δ Γ c τ)]
+
+  [(⊢c Δ Γ c σ)
+   (⊢e Δ (Γ (x : σ)) e τ)
+   ------------------------- "let"
+   (⊢e Δ Γ (let [x c] e) τ)])
+
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢e (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(⟨ (Λ (a) ([x : a]) c x) [(∀ b b)] (y) ⟩) (∀ α (∀ β β))])
+  (redex-judgement-equals-chk
+   (⊢e (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
+
+(define-metafunction λF-ACC
+  infer : e -> τ
+  [(infer e)
+   τ
+   (judgement-holds (⊢e · · e τ))])
 
 
 ;; Dynamic Semantics
@@ -239,10 +290,14 @@
   [(reduce e)
    ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
 
-(define ⇓
-  (context-closure ⟶ λF-ACC F))
+(define-extended-language λF-ACC⇓ λF-ACC
+  (app ::= x (app v) (app [τ]))
+  (v ::= .... app))
 
-(define-metafunction λF-ACC
+(define ⇓
+  (context-closure ⟶ λF-ACC⇓ F))
+
+(define-metafunction λF-ACC⇓
   normalize : e -> v
   [(normalize e)
    ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])

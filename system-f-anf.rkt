@@ -49,6 +49,12 @@
 (define-metafunction/extension F.λ* λF-ANF
   λ* : (any ...) e -> e)
 
+;; Unroll (@ e a_1 ... a_n) into ((e a_1) ... a_n)
+;; where (a ::= e [τ])
+;; The output technically isn't valid ANF but it's useful to have
+(define-metafunction/extension F.@ λF-ANF
+  @ : any ... -> any)
+
 ;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
 (define-metafunction/extension F.let* λF-ANF
   let* : ([x e] ...) e -> e)
