@@ -3,9 +3,9 @@
 (require (rename-in (prefix-in F. "./system-f.rkt")
                     [F.λF λF])
          (rename-in redex/reduction-semantics
-                    [define-judgment-form define-judgement-form]
+                    [define-judgment-form          define-judgement-form]
                     [define-extended-judgment-form define-extended-judgement-form]
-                    [judgment-holds       judgement-holds]))
+                    [judgment-holds                judgement-holds]))
 
 (module+ test
   (require "./redex-chk.rkt"))
@@ -22,9 +22,7 @@
   (e ::= c (let [x c] e)) ;; Configurations
 
   (E ::= hole (let [x hole] e)) ;; Evaluation contexts
-
-  (K ::= ∘ (let [x ∘] e)) ;; Continuations
-  (k ::= (∘ c) ((let [x ∘] k) c)) ;; Continuation expressions
+  (K ::= hole (let [x hole] e)) ;; Continuation contexts
 
   #:binding-forms
   (let [x ∘] e #:refers-to x))
@@ -220,45 +218,22 @@
   #:mode (⊢K I I I I O)
 
   [--------------- "K-empty"
-   (⊢K Δ Γ ∘ τ τ)]
+   (⊢K Δ Γ hole τ τ)]
 
   [(⊢e Δ (Γ (x : σ)) e τ)
    --------------------------- "K-bind"
-   (⊢K Δ Γ (let [x ∘] e) σ τ)])
-
-;; Δ Γ ⊢ k : τ
-(define-judgement-form λF-ANF
-  #:contract (⊢k Δ Γ k τ)
-  #:mode (⊢k I I I O)
-
-  [(⊢c Δ Γ c τ)
-   (⊢K Δ Γ ∘ τ τ)
-   ----------------- "k-empty"
-   (⊢k Δ Γ (∘ c) τ)]
-
-  [(⊢c Δ Γ c σ)
-   (⊢k Δ (Γ (x : σ)) k τ)
-   ----------------------------- "k-bind"
-   (⊢k Δ Γ ((let [x ∘] k) c) τ)])
+   (⊢K Δ Γ (let [x hole] e) σ τ)])
 
 (module+ test
   (redex-judgement-holds-chk
    (⊢K (· a) ·)
-   [∘ a a]
-   [∘ (→ a a) (→ a a)]
-   [(let [x ∘] x) a a]
-   [(let [x ∘]
+   [hole a a]
+   [hole (→ a a) (→ a a)]
+   [(let [x hole] x) a a]
+   [(let [x hole]
       (let [y (λ (z : a) z)]
         (y x)))
-    a a])
-
-  (redex-judgement-holds-chk
-   (⊢k (Δ* α) (Γ* (w : a)))
-   [((let [x ∘]
-       ((let [y ∘]
-          ((let [z ∘]
-             (∘ z)) y)) x)) w)
-    a]))
+    a a]))
 
 (define-metafunction λF-ANF
   infer : e -> τ
@@ -330,41 +305,3 @@
    ⇓
    (term ((λ (x : a) x) ((z [a]) (λ (y : b) y))))
    (term ((z [a]) (λ (y : b) y)))))
-
-;; Continuation plugging
-;; a computation into a hole
-(define plug
-  (reduction-relation
-   λF-ANF
-   (--> (∘ c) c)
-   (--> ((let [x ∘] e) c) (let [x c] e))))
-
-;; Compatible closure of plug
-;; based on a series of plugged continuations
-(define plug*
-  (compatible-closure plug λF-ANF k))
-
-;; Reflexive, transitive closure of plug
-;; We don't need the compatible closure for ANF translation
-;; since only one continuation is being plugged into at a time
-(define-metafunction λF-ANF
-  continue : (K c) -> e
-  [(continue (K c))
-   ,(first (apply-reduction-relation* plug (term (K c)) #:cache-all? #t))])
-
-(module+ test
-  (test-->
-   plug*
-   (term (∘ x))
-   (term x))
-  (test-->
-   plug*
-   (term ((let [x ∘] x) y))
-   (term (let [x y] x)))
-  (test-->>
-   plug*
-   (term ((let [x ∘]
-            ((let [y ∘]
-               ((let [z ∘]
-                  (∘ z)) r)) q)) p))
-   (term (let* ([x p] [y q] [z r]) z))))

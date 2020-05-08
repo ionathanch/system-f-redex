@@ -38,6 +38,11 @@
 (define-metafunction/extension t.∀* λANF
   ∀* : (α ...) τ -> τ)
 
+;; Convenience metafunction for meta-ing `plug`
+(define-metafunction λANF
+  plug* : K c -> e
+  [(plug* K c) ,(plug (term K) (term c))])
+
 
 ;; ANF Translation Judgement
 
@@ -47,12 +52,12 @@
   #:contract (↦τ τ τ)
   #:mode (↦τ I O)
 
-  [--------- "τ-var"
+  [---------- "τ-var"
    (↦τ α α)]
 
   [(↦τ σ_s σ_t)
    (↦τ τ_s τ_t)
-   --------------------------------- "τ-fun"
+   ------------------------------ "τ-fun"
    (↦τ (→ σ_s τ_s) (→ σ_t τ_t))]
 
   [(↦τ τ_s τ_t)
@@ -65,44 +70,44 @@
   #:mode (↦ I I O)
 
   ;; [x]K = K[x]
-  [--------------------------- "var"
-   (↦ x K (t.continue (K x)))]
+  [--------------------- "var"
+   (↦ x K (plug* K x))]
 
   ;; [(λ (x : τ) e)]K = K[(λ (x : [τ]) [e])]
   [(↦τ τ_s τ_t)
-   (↦ e_s ∘ e_t)
-   ----------------------------------------------------------- "fun"
-   (↦ (λ (x : τ_s) e_s) K (t.continue (K (λ (x : τ_t) e_t))))]
+   (↦ e_s hole e_t)
+   ----------------------------------------------------- "fun"
+   (↦ (λ (x : τ_s) e_s) K (plug* K (λ (x : τ_t) e_t)))]
 
   ;; [(e_1 e_2)] = [e_1](let [x_1 ∘] [e_2](let [x_2 ∘] K[(x_1 x_2)]))
   [(where (x_1 x_2) ,(variables-not-in (term (K e_1s e_2s)) '(y y)))
-   (where e (t.continue (K (x_1 x_2))))
-   (where K_2 (let [x_2 ∘] e))
+   (where e (plug* K (x_1 x_2)))
+   (where K_2 (let [x_2 hole] e))
    (↦ e_2s K_2 e_2t)
-   (where K_1 (let [x_1 ∘] e_2t))
+   (where K_1 (let [x_1 hole] e_2t))
    (↦ e_1s K_1 e_1t)
-   ----------------------- "app"
+   ------------------------ "app"
    (↦ (e_1s e_2s) K e_1t)]
 
   ;; [(Λ α e)]K = K[(Λ α [e])]
-  [(↦ e_s ∘ e_t)
-   ------------------------------------------- "polyfun"
-   (↦ (Λ α e_s) K (t.continue (K (Λ α e_t))))]
+  [(↦ e_s hole e_t)
+   ------------------------------------- "polyfun"
+   (↦ (Λ α e_s) K (plug* K (Λ α e_t)))]
 
   ;; [(e [τ])]K = [e](let [x ∘] K[(x [[τ]])])
   [(↦τ τ_s τ_t)
    (where x ,(variable-not-in (term (K e_s)) 'y))
-   (where e (t.continue (K (x [τ_t]))))
-   (where K_1 (let [x ∘] e))
+   (where e (plug* K (x [τ_t])))
+   (where K_1 (let [x hole] e))
    (↦ e_s K_1 e_t)
-   ---------------------- "polyapp"
+   ----------------------- "polyapp"
    (↦ (e_s [τ_s]) K e_t)]
 
   ;; [(let [x e_1] e_2)]K = [e_1](let [x ∘] [e_2]K)
   [(↦ e_2s K e_2t)
-   (where K_1 (let [x ∘] e_2t))
+   (where K_1 (let [x hole] e_2t))
    (↦ e_1s K_1 e_1t)
-   ------------------------------- "let"
+   -------------------------------- "let"
    (↦ (let [x e_1s] e_2s) K e_1t)])
 
 
@@ -136,7 +141,7 @@
   compile : e -> e
   [(compile e)
    ,(first (apply-reduction-relation* ⟶* (term e_anf) #:cache-all? #t))
-   (judgement-holds (↦ e ∘ e_anf))])
+   (judgement-holds (↦ e hole e_anf))])
 
 (define-metafunction λANF
   compile-type : τ -> τ
