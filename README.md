@@ -28,6 +28,8 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ## TODOs
 * Implement hoisting pass!
+* Add booleans and if statements (this is of interest for ANF)
+* Consider adding fixpoints (this might be of interest for ACC... or not)
 * Fix ambiguity of ANF let-evaluation context
 * Add evaluation context for call-by-name, normal order evaluation (why? CBN doesn't follow the "intuitive" notion of how a program runs)
 * Finish Church encodings (F)
