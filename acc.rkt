@@ -49,82 +49,82 @@
 ;; Note that the translation is defined over the typing rules for ANF
 ;; because it needs to know the types of the free variables
 
-;; [τ] ↦ τ
+;; [τ] ↝ τ
 ;; In ACC, this does nothing.
 (define-judgement-form λACC
-  #:contract (↦τ τ τ)
-  #:mode (↦τ I O)
+  #:contract (↝τ τ τ)
+  #:mode (↝τ I O)
 
   [--------- "τ-var"
-   (↦τ α α)]
+   (↝τ α α)]
 
-  [(↦τ σ_s σ_t)
-   (↦τ τ_s τ_t)
+  [(↝τ σ_s σ_t)
+   (↝τ τ_s τ_t)
    --------------------------------- "τ-fun"
-   (↦τ (→ σ_s τ_s) (→ σ_t τ_t))]
+   (↝τ (→ σ_s τ_s) (→ σ_t τ_t))]
 
-  [(↦τ τ_s τ_t)
+  [(↝τ τ_s τ_t)
    -------------------------- "τ-poly"
-   (↦τ (∀ α τ_s) (∀ α τ_t))])
+   (↝τ (∀ α τ_s) (∀ α τ_t))])
 
-;; Δ Γ ⊢ v ↦ v : τ
+;; Δ Γ ⊢ v ↝ v : τ
 (define-judgement-form λACC
-  #:contract (⊢v Δ Γ v ↦ v τ)
+  #:contract (⊢v Δ Γ v ↝ v τ)
   #:mode (⊢v I I I I O O)
 
   [(∈Γ x τ Γ)
    ------------- "var"
-   (⊢v Δ Γ x ↦ x τ)]
+   (⊢v Δ Γ x ↝ x τ)]
 
-  [(↦τ σ σ_1)
-   (⊢e Δ (Γ (x : σ_1)) e_s ↦ e_t σ_2)
+  [(↝τ σ σ_1)
+   (⊢e Δ (Γ (x : σ_1)) e_s ↝ e_t σ_2)
    (where (β ...) (free-type-vars-term (λ (x : σ) e_s)))
    (where (y ...) (free-vars (λ (x : σ) e_s)))
-   (⊢v Δ Γ y ↦ y τ) ...
+   (⊢v Δ Γ y ↝ y τ) ...
    ----------------------------------------------------------------------------------------------- "fun"
-   (⊢v Δ Γ (λ (x : σ) e_s) ↦ (⟨ (λ (β ...) ([y : τ] ...) (x : σ_1) e_t) (β ...) (y ...) ⟩) (→ σ_1 σ_2))]
+   (⊢v Δ Γ (λ (x : σ) e_s) ↝ (⟨ (λ (β ...) ([y : τ] ...) (x : σ_1) e_t) [β ...] (y ...) ⟩) (→ σ_1 σ_2))]
 
-  [(⊢e (Δ α) Γ e_s ↦ e_t σ)
+  [(⊢e (Δ α) Γ e_s ↝ e_t σ)
    (where (β ...) (free-type-vars-term (Λ α e_s)))
    (where (y ...) (free-vars (Λ α e_s)))
-   (⊢v Δ Γ y ↦ y τ) ...
+   (⊢v Δ Γ y ↝ y τ) ...
    ----------------------------------------------------------------------------- "polyfun"
-   (⊢v Δ Γ (Λ α e_s) ↦ (⟨ (Λ (β ...) ([y : τ] ...) α e_t) (β ...) (y ...) ⟩) (∀ α σ))])
+   (⊢v Δ Γ (Λ α e_s) ↝ (⟨ (Λ (β ...) ([y : τ] ...) α e_t) [β ...] (y ...) ⟩) (∀ α σ))])
 
-;; Δ Γ ⊢ c ↦ c : τ
+;; Δ Γ ⊢ c ↝ c : τ
 ;; Trivial transformation
 (define-judgement-form λACC
-  #:contract (⊢c Δ Γ c ↦ c τ)
+  #:contract (⊢c Δ Γ c ↝ c τ)
   #:mode (⊢c I I I I O O)
 
-  [(⊢v Δ Γ v_s ↦ v_t τ)
+  [(⊢v Δ Γ v_s ↝ v_t τ)
    ---------------------- "val"
-   (⊢c Δ Γ v_s ↦ v_t τ)]
+   (⊢c Δ Γ v_s ↝ v_t τ)]
 
-  [(⊢v Δ Γ v_2s ↦ v_2t σ)
-   (⊢v Δ Γ v_1s ↦ v_1t (→ σ τ))
+  [(⊢v Δ Γ v_2s ↝ v_2t σ)
+   (⊢v Δ Γ v_1s ↝ v_1t (→ σ τ))
    -------------------------------------- "app"
-   (⊢c Δ Γ (v_1s v_2s) ↦ (v_1t v_2t) τ)]
+   (⊢c Δ Γ (v_1s v_2s) ↝ (v_1t v_2t) τ)]
 
-  [(↦τ σ_s σ_t)
-   (⊢v Δ Γ v_s ↦ v_t (∀ α τ))
+  [(↝τ σ_s σ_t)
+   (⊢v Δ Γ v_s ↝ v_t (∀ α τ))
    --------------------------------------------------------- "polyapp"
-   (⊢c Δ Γ (v_s [σ_s]) ↦ (v_t [σ_t]) (substitute τ α σ_t))])
+   (⊢c Δ Γ (v_s [σ_s]) ↝ (v_t [σ_t]) (substitute τ α σ_t))])
 
-;; Δ Γ ⊢ e ↦ e : τ
+;; Δ Γ ⊢ e ↝ e : τ
 ;; Trivial transformation
 (define-judgement-form λACC
-  #:contract (⊢e Δ Γ e ↦ e τ)
+  #:contract (⊢e Δ Γ e ↝ e τ)
   #:mode (⊢e I I I I O O)
 
-  [(⊢c Δ Γ c_s ↦ c_t τ)
+  [(⊢c Δ Γ c_s ↝ c_t τ)
    ---------------------- "comp"
-   (⊢e Δ Γ c_s ↦ c_t τ)]
+   (⊢e Δ Γ c_s ↝ c_t τ)]
 
-  [(⊢c Δ Γ c_s ↦ c_t σ)
-   (⊢e Δ (Γ (x : σ)) e_s ↦ e_t τ)
+  [(⊢c Δ Γ c_s ↝ c_t σ)
+   (⊢e Δ (Γ (x : σ)) e_s ↝ e_t τ)
    -------------------------------------------------- "let"
-   (⊢e Δ Γ (let [x c_s] e_s) ↦ (let [x c_t] e_t) τ)])
+   (⊢e Δ Γ (let [x c_s] e_s) ↝ (let [x c_t] e_t) τ)])
 
 
 ;; Compilation Convenience Metafunctions
@@ -132,12 +132,12 @@
 (define-metafunction λACC
   compile : e -> e
   [(compile e_s)
-   e_t (judgement-holds (⊢e · · e_s ↦ e_t _))])
+   e_t (judgement-holds (⊢e · · e_s ↝ e_t _))])
 
 (define-metafunction λACC
   compile-type : τ -> τ
   [(compile-type τ_s)
-   τ_t (judgement-holds (↦τ τ_s τ_t))])
+   τ_t (judgement-holds (↝τ τ_s τ_t))])
 
 (module+ test
   (define-term id
@@ -148,7 +148,7 @@
 
   (define-term id-ACC
     (⟨ (Λ () () a
-          (⟨ (λ (a) () (x : a) x) (a) () ⟩))
+          (⟨ (λ (a) () (x : a) x) [a] () ⟩))
        () () ⟩))
 
   (define-term const-ACC
@@ -156,10 +156,10 @@
           (⟨ (Λ (a) () b
                 (⟨ (λ (a b) () (x : a)
                      (⟨ (λ (b) ([x : a]) (y : b) x)
-                        (b) (x) ⟩))
-                   (a b) () ⟩))
-             (a) () ⟩))
-       () () ⟩))
+                        [b] (x) ⟩))
+                   [a b] () ⟩))
+             [a] () ⟩))
+       [] () ⟩))
 
   (define-term id-compiled
     (compile id))

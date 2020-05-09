@@ -304,15 +304,15 @@
 
 (module+ test
   (define-term id-a
-    (⟨ (λ (a) () (x : a) x) (a) () ⟩))
+    (⟨ (λ (a) () (x : a) x) [a] () ⟩))
   (define-term id
-    (⟨ (Λ () () a id-a) () () ⟩))
+    (⟨ (Λ () () a id-a) [] () ⟩))
   (define-term idid-id
     (let* ([the-id id] [the-idid (id [(∀ b (→ b b))])])
       (the-idid the-id)))
   (define-term app-id
     (let (the-id id)
-      ((⟨ (λ () ([an-id : (∀ a (→ a a))]) (x : b) (an-id x)) () (id) ⟩) y)))
+      ((⟨ (λ () ([an-id : (∀ a (→ a a))]) (x : b) (an-id x)) [] (id) ⟩) y)))
 
   (test-->>
    ⟶*
@@ -326,8 +326,8 @@
 
   (test-->>
    ⇓
-   (term (⟨ (Λ () () b idid-id) () () ⟩))
-   (term (⟨ (Λ () () b id) () () ⟩))))
+   (term (⟨ (Λ () () b idid-id) [] () ⟩))
+   (term (⟨ (Λ () () b id) [] () ⟩))))
 
 
 ;; Metafunctions
