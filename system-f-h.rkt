@@ -81,13 +81,115 @@
 (define-metafunction/extension F.Δ* λF-H
   Δ* : α ... -> Δ)
 
-;; Unroll (Γ (x_1 : τ_1) ... (x_n : τ_n)) into ((Γ (x_1 : τ_1)) ... (x_n : τ_n))
-(define-metafunction/extension F.Γ+ λF-H
-  Γ+ : Γ (x : τ) ... -> Γ)
-
-;; Unroll (Δ α_1 ... α_n) into ((Δ α_1) ... α_n)
-(define-metafunction/extension F.Δ+ λF-H
-  Δ+ : Δ α ... -> Δ)
-
 
 ;; Static Semantics
+
+;; (x : τ) ∈ Γ
+(define-extended-judgement-form λF-H F.∈Γ
+  #:contract (∈Γ x τ Γ)
+  #:mode (∈Γ I O I))
+
+;; α ∈ Δ
+(define-extended-judgement-form λF-H F.∈Δ
+  #:contract (∈Δ α Δ)
+  #:mode (∈Δ I I))
+
+;; Δ ⊢ τ
+(define-extended-judgement-form λF-H F.⊢τ
+  #:contract (⊢τ Δ τ)
+  #:mode (⊢τ I I))
+
+;; Δ Γ ⊢ v : τ
+;; Copied from λF-ACC, but with k ↝ l
+(define-extended-judgement-form λF-H F.⊢v
+  #:contract (⊢v Δ Γ v τ)
+  #:mode (⊢v I I I O)
+
+  [(⊢v Δ Γ l (vcode (α ..._1) (τ ..._2) β σ_1))
+   (⊢τ Δ σ) ...
+   (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
+   (where σ_2 (substitute* (∀ β σ_1) (α ...) (σ ...)))
+   (⊢v Δ Γ v τ_0) ...
+   ---------------------------------------- "polyfun"
+   (⊢v Δ Γ (⟨ l [σ ..._1] (v ..._2) ⟩) σ_2)]
+
+  [(⊢v Δ Γ l (tcode (α ..._1) (τ ..._2) σ_1 σ_2))
+   (⊢τ Δ σ) ...
+   (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
+   (where σ_12 (substitute* (→ σ_1 σ_2) (α ...) (σ ...)))
+   (⊢v Δ Γ v τ_0) ...
+   ----------------------------------------- "fun"
+   (⊢v Δ Γ (⟨ l [σ ..._1] (v ..._2) ⟩) σ_12)])
+
+;; Δ Γ ⊢ c : τ
+;; Copied from λF-ACC
+(define-judgement-form λF-H
+  #:contract (⊢c Δ Γ c τ)
+  #:mode (⊢c I I I O)
+
+  [(⊢v Δ Γ v τ)
+   ------------- "val"
+   (⊢c Δ Γ v τ)]
+
+  [(⊢v Δ Γ v_2 σ)
+   (⊢v Δ Γ v_1 (→ σ τ))
+   --------------------- "app"
+   (⊢c Δ Γ (v_1 v_2) τ)]
+
+  [(⊢τ Δ σ)
+   (⊢v Δ Γ v (∀ α τ))
+   ------------------------------------ "polyapp"
+   (⊢c Δ Γ (v [σ]) (substitute τ α σ))])
+
+;; Δ Γ ⊢ e : τ
+;; Copied from λF-ACC
+(define-judgement-form λF-H
+  #:contract (⊢e Δ Γ e τ)
+  #:mode (⊢e I I I O)
+
+  [(⊢c Δ Γ c τ)
+   ------------- "comp"
+   (⊢e Δ Γ c τ)]
+
+  [(⊢c Δ Γ c σ)
+   (⊢e Δ (Γ (x : σ)) e τ)
+   ------------------------- "let"
+   (⊢e Δ Γ (let [x c] e) τ)])
+
+;; ⊢ p : τ
+;; Copied from λF-ACC's ⊢k, but with λ, Λ ↝ l ↦
+;; If P contained letrecs, then l : (code (α ...) (τ ...) σ_1 σ_2) would be in Γ+
+(define-judgement-form λF-H
+  #:contract (⊢p p τ)
+  #:mode (⊢p I O)
+
+  [(where Δ_0 (Δ* α ...))
+   (⊢τ Δ_0 τ) ...
+   (⊢e (Δ_0 β) (Γ* (x : τ) ...) e σ)
+   ------------------------------------------------------------------- "vcode"
+   (⊢p (l ↦ (α ...) ([x : τ] ...) (β : *) e) (vcode (α ...) (τ ...) β σ))]
+
+  [(where Δ_0 (Δ* α ...))
+   (⊢τ Δ_0 τ) ...
+   (⊢e Δ_0 (Γ* (x : τ) ... (y : σ_1)) e σ_2)
+   ------------------------------------------------------------------------------- "tcode"
+   (⊢p (l ↦ (α ...) ([x : τ] ...) (y : σ_1) e) (tcode (α ...) (τ ...) σ_1 σ_2))])
+
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢p)
+   [(l ↦ (a b) ([x : a] [y : (∀ b b)]) (c : *) (y [c])) (vcode (α_1 β_1) (α_1 (∀ β_2 β_2)) α_2 α_2)]
+   [(l ↦ (a b) ([x : a] [y : (→ a b)]) (z : a) (y z))   (tcode (α β) (α (→ α β)) α β)]))
+
+;; ⊢ P : τ
+;; This is the most significant new typing rule
+(define-judgement-form λF-H
+  #:contract (⊢ P τ)
+  #:mode (⊢ I O)
+
+  [(⊢p p σ) ...
+   (where ((l ↦ _ _ _ _) ..._0) (p ...))
+   (where Γ (Γ* (l : σ) ...))
+   (⊢e · Γ e τ)
+   ---------------------- "program"
+   (⊢ (let (p ..._0) e) τ)])

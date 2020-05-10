@@ -100,20 +100,6 @@
 (define-metafunction/extension F.Δ* λF-ACC
   Δ* : α ... -> Δ)
 
-;; Unroll (Γ (x_1 : τ_1) ... (x_n : τ_n)) into ((Γ (x_1 : τ_1)) ... (x_n : τ_n))
-(define-metafunction λF-ACC
-  Γ+ : Γ (x : τ) ... -> Γ
-  [(Γ+ Γ) Γ]
-  [(Γ+ Γ (x_r : τ_r) ... (x : τ))
-   ((Γ+ Γ (x_r : τ_r) ...) (x : τ))])
-
-;; Unroll (Δ α_1 ... α_n) into ((Δ α_1) ... α_n)
-(define-metafunction λF-ACC
-  Δ+ : Δ α ... -> Δ
-  [(Δ+ Δ) Δ]
-  [(Δ+ Δ α_r ... α)
-   ((Δ+ Δ α_r ...) α)])
-
 
 ;; Static Semantics
 
@@ -151,26 +137,27 @@
    [(vcode (a b) (b a) c (→* a b c))]
    [(tcode (a b) (b a) (→ a b) (→ b a))]))
 
-;; Δ Γ ⊢ k : τ
+;; ⊢ k : τ
+;; No contexts, since code is supposed to be closed
 (define-judgement-form λF-ACC
-  #:contract (⊢k Δ Γ k τ)
-  #:mode (⊢k I I I O)
+  #:contract (⊢k k τ)
+  #:mode (⊢k I O)
 
-  [(where Δ_0 (Δ+ Δ α ...))
+  [(where Δ_0 (Δ* α ...))
    (⊢τ Δ_0 τ) ...
-   (⊢e (Δ_0 β) (Γ+ Γ (x : τ) ...) e σ)
+   (⊢e (Δ_0 β) (Γ* (x : τ) ...) e σ)
    ------------------------------------------------------------------- "vcode"
-   (⊢k Δ Γ (Λ (α ...) ([x : τ] ...) β e) (vcode (α ...) (τ ...) β σ))]
+   (⊢k (Λ (α ...) ([x : τ] ...) β e) (vcode (α ...) (τ ...) β σ))]
 
-  [(where Δ_0 (Δ+ Δ α ...))
+  [(where Δ_0 (Δ* α ...))
    (⊢τ Δ_0 τ) ...
-   (⊢e Δ_0 (Γ+ Γ (x : τ) ... (y : σ_1)) e σ_2)
+   (⊢e Δ_0 (Γ* (x : τ) ... (y : σ_1)) e σ_2)
    ------------------------------------------------------------------------------- "tcode"
-   (⊢k Δ Γ (λ (α ...) ([x : τ] ...) (y : σ_1) e) (tcode (α ...) (τ ...) σ_1 σ_2))])
+   (⊢k (λ (α ...) ([x : τ] ...) (y : σ_1) e) (tcode (α ...) (τ ...) σ_1 σ_2))])
 
 (module+ test
   (redex-judgement-holds-chk
-   (⊢k · ·)
+   (⊢k)
    [(Λ (a b) ([x : a] [y : (∀ b b)]) c (y [c])) (vcode (α_1 β_1) (α_1 (∀ β_2 β_2)) α_2 α_2)]
    [(λ (a b) ([x : a] [y : (→ a b)]) (z : a) (y z)) (tcode (α β) (α (→ α β)) α β)]))
 
@@ -179,7 +166,7 @@
   #:contract (⊢v Δ Γ v τ)
   #:mode (⊢v I I I O)
 
-  [(⊢k Δ Γ k (vcode (α ..._1) (τ ..._2) β σ_1))
+  [(⊢k k (vcode (α ..._1) (τ ..._2) β σ_1))
    (⊢τ Δ σ) ...
    (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
    (where σ_2 (substitute* (∀ β σ_1) (α ...) (σ ...)))
@@ -187,7 +174,7 @@
    ---------------------------------------- "polyfun"
    (⊢v Δ Γ (⟨ k [σ ..._1] (v ..._2) ⟩) σ_2)]
 
-  [(⊢k Δ Γ k (tcode (α ..._1) (τ ..._2) σ_1 σ_2))
+  [(⊢k k (tcode (α ..._1) (τ ..._2) σ_1 σ_2))
    (⊢τ Δ σ) ...
    (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
    (where σ_12 (substitute* (→ σ_1 σ_2) (α ...) (σ ...)))
@@ -204,6 +191,7 @@
    [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
 
 ;; Δ Γ ⊢ c : τ
+;; Copied from λF-ANF
 (define-judgement-form λF-ACC
   #:contract (⊢c Δ Γ c τ)
   #:mode (⊢c I I I O)
@@ -231,6 +219,7 @@
    [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
 
 ;; Δ Γ ⊢ e : τ
+;; Copied from λF-ANF
 (define-judgement-form λF-ACC
   #:contract (⊢e Δ Γ e τ)
   #:mode (⊢e I I I O)
