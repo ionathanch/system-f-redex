@@ -18,18 +18,18 @@
 
 (define-extended-language λF-H λF-ACC
   (l ::= variable-not-otherwise-mentioned) ;; Labels
-  (τ σ ::= .... *) ;; Types with kinds
+  (s ::= τ *) ;; Sorts (types or the * kind)
   (P ::= (let (p ...) e)) ;; A collection of programs
-  (p ::= [l ↦ (α ...) ([x : τ] ...) (y : σ) e]) ;; Programs
+  (p ::= [l ↦ (α ...) ([x : τ] ...) (y : s) e]) ;; Programs
   (v ::= x (⟨ l [σ ...] (v ...) ⟩)) ;; Values
 
   #:binding-forms
-  [l ↦
-     (α ...) b #:refers-to (shadow α ...)
-     (x : τ)   #:refers-to (shadow α ...)
-     e_body    #:refers-to (shadow α ... b x)] #:exports l
-  (let (p #:...bind (clauses p (shadow clauses p)))
-    e #:refers-to clauses))
+  (let ([l ↦
+           (α ...) b #:refers-to (shadow α ...)
+           (x : τ)   #:refers-to (shadow α ...)
+           e_body    #:refers-to (shadow α ... b x)]
+        ...)
+    e #:refers-to (shadow l ...)))
 
 (default-language λF-H)
 
@@ -47,8 +47,11 @@
   ;; The following should therefore be alpha-equivalent
   (redex-chk
    #:eq
-   (let ([f ↦ () () (u : a) u] [g ↦ () () (v : b) (f v)]) (let (w (g c)) (f w)))
-   (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) (j y)]) (let (z (k c)) (j z)))))
+   (let ([f ↦ (a) ([x : a]) (y : a) (x y)]) f)
+   (let ([f ↦ (b) ([u : b]) (v : b) (u v)]) f)
+   #:eq
+   (let ([f ↦ () () (u : a) u] [g ↦ () () (v : b) v]) (let (w (g c)) (f w)))
+   (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) y]) (let (z (k c)) (j z)))))
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
@@ -62,7 +65,7 @@
   @ : any ... -> any)
 
 ;; Unroll (let* ([x_1 e_1] ... [x_n e_n]) e) into (let [x_1 e_1] ... (let [x_n e_n] e))
-(define-metafunction/extension F.let* λF-ACC
+(define-metafunction/extension F.let* λF-H
   let* : ([x e] ...) e -> e)
 
 ;; Unroll (τ_1 → ... → τ_n) into (τ_1 → (... → τ_n))
@@ -85,9 +88,17 @@
 ;; Static Semantics
 
 ;; (x : τ) ∈ Γ
-(define-extended-judgement-form λF-H F.∈Γ
+;; Copied from λF since tcode/vcode can now enter the environment
+(define-judgement-form λF-H
   #:contract (∈Γ x τ Γ)
-  #:mode (∈Γ I O I))
+  #:mode (∈Γ I O I)
+
+  [-------------------- "Γ-car"
+   (∈Γ x τ (Γ (x : τ)))]
+
+  [(∈Γ x τ Γ)
+   ------------------------- "Γ-cdr"
+   (∈Γ x τ (Γ (x_0 : σ)))])
 
 ;; α ∈ Δ
 (define-extended-judgement-form λF-H F.∈Δ
@@ -100,10 +111,14 @@
   #:mode (⊢τ I I))
 
 ;; Δ Γ ⊢ v : τ
-;; Copied from λF-ACC, but with k ↝ l
-(define-extended-judgement-form λF-H F.⊢v
+;; Copied from λF-ANF and λF-ACC, but with k ↝ l
+(define-judgement-form λF-H
   #:contract (⊢v Δ Γ v τ)
   #:mode (⊢v I I I O)
+
+  [(∈Γ x τ Γ)
+   ------------- "var"
+   (⊢v Δ Γ x τ)]
 
   [(⊢v Δ Γ l (vcode (α ..._1) (τ ..._2) β σ_1))
    (⊢τ Δ σ) ...
@@ -120,6 +135,14 @@
    (⊢v Δ Γ v τ_0) ...
    ----------------------------------------- "fun"
    (⊢v Δ Γ (⟨ l [σ ..._1] (v ..._2) ⟩) σ_12)])
+
+(module+ test
+  (redex-judgement-holds-chk
+   (⊢v (· b) (Γ* (l : (tcode (a) () a a))))
+   [l (tcode (a) () a a)])
+  (redex-judgement-equals-chk
+   (⊢v (· b) (Γ* (l : (tcode (a) () a a))))
+   [(⟨ l (b) () ⟩) τ #:pat τ #:term (→ b b)]))
 
 ;; Δ Γ ⊢ c : τ
 ;; Copied from λF-ACC
@@ -166,13 +189,13 @@
   [(where Δ_0 (Δ* α ...))
    (⊢τ Δ_0 τ) ...
    (⊢e (Δ_0 β) (Γ* (x : τ) ...) e σ)
-   ------------------------------------------------------------------- "vcode"
+   ------------------------------------------------------------------------ "vcode"
    (⊢p (l ↦ (α ...) ([x : τ] ...) (β : *) e) (vcode (α ...) (τ ...) β σ))]
 
   [(where Δ_0 (Δ* α ...))
    (⊢τ Δ_0 τ) ...
    (⊢e Δ_0 (Γ* (x : τ) ... (y : σ_1)) e σ_2)
-   ------------------------------------------------------------------------------- "tcode"
+   ------------------------------------------------------------------------------ "tcode"
    (⊢p (l ↦ (α ...) ([x : τ] ...) (y : σ_1) e) (tcode (α ...) (τ ...) σ_1 σ_2))])
 
 (module+ test
@@ -188,8 +211,37 @@
   #:mode (⊢ I O)
 
   [(⊢p p σ) ...
-   (where ((l ↦ _ _ _ _) ..._0) (p ...))
+   (where ((l ↦ _ _ _ _) ...) (p ...))
    (where Γ (Γ* (l : σ) ...))
    (⊢e · Γ e τ)
    ---------------------- "program"
-   (⊢ (let (p ..._0) e) τ)])
+   (⊢ (let (p ...) e) τ)])
+
+(module+ test
+  (redex-judgement-equals-chk
+   (⊢)
+   [(let ([id-x ↦ (a) () (x : a) x]
+          [id-a ↦ () ([id-x : (tcode (a) () a a)]) (a : *) (⟨ id-x [a] () ⟩)])
+      (let* ([id (⟨ id-a () (id-x) ⟩)]
+             [id-id-type (id [(∀ a (→ a a))])]
+             [id-id (id-id-type id)])
+        id-id))
+    τ #:pat τ
+    #:term (∀ a (→ a a))]))
+
+
+;; Metafunctions
+
+;; The following metafunctions are neither desugaring ones
+;; nor convenience evaluation ones, and are nontrivial
+;; to both static and dynamic semantics
+
+;; (substitute** (τ_0 ... τ_n) (α ...) (σ ...))
+;; Returns (τ_0[σ .../α ...] ... τ_n[σ .../α ...])
+(define-metafunction/extension F.substitute** λF-H
+  substitute** : (τ ..._0) (x ..._1) (any ..._1) -> (any ..._0))
+
+;; (substitute* e (x ...) (v ...)) or (substitute* e (α ...) (σ ...))
+;; Returns e[v_1/x_1]...[v_n/x_n], also denoted e[v_1 .../x_1 ...]
+(define-metafunction/extension F.substitute* λF-H
+  substitute* : any (x ..._1) (any ..._1) -> any)
