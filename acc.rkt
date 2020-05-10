@@ -78,18 +78,20 @@
 
   [(↝τ σ σ_1)
    (⊢e Δ (Γ (x : σ_1)) e_s ↝ e_t σ_2)
-   (where (β ...) (free-type-vars-term (λ (x : σ) e_s)))
    (where (y ...) (free-vars (λ (x : σ) e_s)))
    (⊢v Δ Γ y ↝ y τ) ...
-   ----------------------------------------------------------------------------------------------------- "fun"
-   (⊢v Δ Γ (λ (x : σ) e_s) ↝ (⟨ (λ (β ...) ([y : τ] ...) (x : σ_1) e_t) [β ...] (y ...) ⟩) (→ σ_1 σ_2))]
+   (where (β_1 ...) (free-type-vars-types (τ ...)))
+   (where (β_2 ...) (free-type-vars-term (λ (x : σ) e_s)))
+   ------------------------------------------------------------------------------------------------------------------------- "fun"
+   (⊢v Δ Γ (λ (x : σ) e_s) ↝ (⟨ (λ (β_1 ... β_2 ...) ([y : τ] ...) (x : σ_1) e_t) [β_1 ... β_2 ...] (y ...) ⟩) (→ σ_1 σ_2))]
 
   [(⊢e (Δ α) Γ e_s ↝ e_t σ)
-   (where (β ...) (free-type-vars-term (Λ α e_s)))
    (where (y ...) (free-vars (Λ α e_s)))
    (⊢v Δ Γ y ↝ y τ) ...
-   ----------------------------------------------------------------------------------- "polyfun"
-   (⊢v Δ Γ (Λ α e_s) ↝ (⟨ (Λ (β ...) ([y : τ] ...) α e_t) [β ...] (y ...) ⟩) (∀ α σ))])
+   (where (β_1 ...) (free-type-vars-types (τ ...)))
+   (where (β_2 ...) (free-type-vars-term (Λ α e_s)))
+   ------------------------------------------------------------------------------------------------------- "polyfun"
+   (⊢v Δ Γ (Λ α e_s) ↝ (⟨ (Λ (β_1 ... β_2 ...) ([y : τ] ...) α e_t) [β_1 ... β_2 ...] (y ...) ⟩) (∀ α σ))])
 
 ;; Δ Γ ⊢ c ↝ c : τ
 ;; Trivial transformation
@@ -155,8 +157,8 @@
     (⟨ (Λ () () a
           (⟨ (Λ (a) () b
                 (⟨ (λ (a b) () (x : a)
-                     (⟨ (λ (b) ([x : a]) (y : b) x)
-                        [b] (x) ⟩))
+                     (⟨ (λ (a b) ([x : a]) (y : b) x)
+                        [a b] (x) ⟩))
                    [a b] () ⟩))
              [a] () ⟩))
        [] () ⟩))
@@ -181,6 +183,15 @@
 
 ;; The following metafunctions are neither desugaring ones
 ;; nor convenience evaluation ones, and are nontrivial
+
+;; Returns free type variables in given types
+(define-metafunction s.λF-ANF
+  free-type-vars-types : (τ ...) -> (α ...)
+  [(free-type-vars-types ()) ()]
+  [(free-type-vars-types (τ τ_r ...))
+   (α ... β ...)
+   (where (α ...) (free-type-vars-type τ))
+   (where (β ...) (free-type-vars-types (τ_r ...)))])
 
 ;; Returns free type variables in given type
 (define-metafunction s.λF-ANF
