@@ -79,7 +79,7 @@
    (λ* (a) x) (Λ a x)
    (λ* ([x : a] b [z : d]) (x z)) (λ (x : a) (Λ b (λ (z : d) (x z))))
    (let* ([x (λ (x : a) x)]) x) (let [x (λ (x : a) x)] x)
-   (let* ([x (λ (x : a) x)] [y x] [z y]) z) (let (x (λ (x : a) x)) (let (y x) (let (z y) z)))
+   (let* ([x (λ (x : a) x)] [y x] [z y]) z) (let [x (λ (x : a) x)] (let [y x] (let [z y] z)))
    (→* a) a
    (→* a b d) (→ a (→ b d))
    (→* (→ a b) d) (→ (→ a b) d)

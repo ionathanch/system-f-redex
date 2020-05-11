@@ -41,7 +41,7 @@
    #:lang λF-H
    #:m P (let ([id-a ↦ (a) () (x : a) x]
                [id   ↦ ()  () (a : *) (id-a [a])])
-           (let (id-idtype (id [(∀ a (→ a a))]))
+           (let [id-idtype (id [(∀ a (→ a a))])]
              (id-idtype id))))
 
   ;; Check that the bindings are working correctly
@@ -51,8 +51,8 @@
    (let ([f ↦ (a) ([x : a]) (y : a) (x y)]) f)
    (let ([f ↦ (b) ([u : b]) (v : b) (u v)]) f)
    #:eq
-   (let ([f ↦ () () (u : a) u] [g ↦ () () (v : b) v]) (let (w (g c)) (f w)))
-   (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) y]) (let (z (k c)) (j z)))))
+   (let ([f ↦ () () (u : a) u] [g ↦ () () (v : b) v]) (let [w (g c)] (f w)))
+   (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) y]) (let [z (k c)] (j z)))))
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
@@ -243,18 +243,18 @@
    (⇓ Φ v v)]
 
   [(where x ,(variable-not-in (term c) 'y))
-   (⇓ Φ (let (x (v_1 v_2)) x) v)
+   (⇓ Φ (let [x (v_1 v_2)] x) v)
    ------------------ "comp-app"
    (⇓ Φ (v_1 v_2) v)]
 
   [(where x ,(variable-not-in (term c) 'y))
-   (⇓ Φ (let (x (v_1 [σ])) x) v)
+   (⇓ Φ (let [x (v_1 [σ])] x) v)
    ------------------ "comp-polyapp"
    (⇓ Φ (v_1 [σ]) v)]
 
   [(⇓ Φ (substitute e x v) v_0)
    ------------------------ "let"
-   (⇓ Φ (let (x v) e) v_0)]
+   (⇓ Φ (let [x v] e) v_0)]
 
   [(where (l ↦ (α ...) ([x : _] ...) (y : _) e) (get-code l Φ))
    (where e_2 (substitute
@@ -263,9 +263,9 @@
                 (x ...) (v ...))
                y v_1))
    (⇓ Φ e_2 v_2)
-   (⇓ Φ (let (x_1 v_2) e_1) v_0)
+   (⇓ Φ (let [x_1 v_2] e_1) v_0)
    ------------------------------------------------------- "app"
-   (⇓ Φ (let (x_1 ((⟨ l [σ ...] (v ...) ⟩) v_1)) e_1) v_0)]
+   (⇓ Φ (let [x_1 ((⟨ l [σ ...] (v ...) ⟩) v_1)] e_1) v_0)]
 
   [(where (l ↦ (α ...) ([x : _] ...) (β : *) e) (get-code l Φ))
    (where e_2 (substitute
@@ -274,9 +274,9 @@
                 (x ...) (v ...))
                β σ_1))
    (⇓ Φ e_2 v_2)
-   (⇓ Φ (let (x_1 v_2) e_1) v_0)
+   (⇓ Φ (let [x_1 v_2] e_1) v_0)
    --------------------------------------------------------- "polyapp"
-   (⇓ Φ (let (x_1 ((⟨ l [σ ...] (v ...) ⟩) [σ_1])) e_1) v_0)])
+   (⇓ Φ (let [x_1 ((⟨ l [σ ...] (v ...) ⟩) [σ_1])] e_1) v_0)])
 
 (define-metafunction λF-H
   reduce : P -> v

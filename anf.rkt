@@ -38,11 +38,6 @@
 (define-metafunction/extension t.∀* λANF
   ∀* : (α ...) τ -> τ)
 
-;; Convenience metafunction for meta-ing `plug`
-(define-metafunction λANF
-  plug* : K c -> e
-  [(plug* K c) ,(plug (term K) (term c))])
-
 
 ;; ANF Translation Judgement
 
@@ -71,17 +66,17 @@
 
   ;; [x]K = K[x]
   [--------------------- "var"
-   (↝ x K (plug* K x))]
+   (↝ x K (in-hole K x))]
 
   ;; [(λ (x : τ) e)]K = K[(λ (x : [τ]) [e])]
   [(↝τ τ_s τ_t)
    (↝ e_s hole e_t)
    ----------------------------------------------------- "fun"
-   (↝ (λ (x : τ_s) e_s) K (plug* K (λ (x : τ_t) e_t)))]
+   (↝ (λ (x : τ_s) e_s) K (in-hole K (λ (x : τ_t) e_t)))]
 
   ;; [(e_1 e_2)] = [e_1](let [x_1 ∘] [e_2](let [x_2 ∘] K[(x_1 x_2)]))
   [(where (x_1 x_2) ,(variables-not-in (term (K e_1s e_2s)) '(y y)))
-   (where e (plug* K (x_1 x_2)))
+   (where e (in-hole K (x_1 x_2)))
    (where K_2 (let [x_2 hole] e))
    (↝ e_2s K_2 e_2t)
    (where K_1 (let [x_1 hole] e_2t))
@@ -92,12 +87,12 @@
   ;; [(Λ α e)]K = K[(Λ α [e])]
   [(↝ e_s hole e_t)
    ------------------------------------- "polyfun"
-   (↝ (Λ α e_s) K (plug* K (Λ α e_t)))]
+   (↝ (Λ α e_s) K (in-hole K (Λ α e_t)))]
 
   ;; [(e [τ])]K = [e](let [x ∘] K[(x [[τ]])])
   [(↝τ τ_s τ_t)
    (where x ,(variable-not-in (term (K e_s)) 'y))
-   (where e (plug* K (x [τ_t])))
+   (where e (in-hole K (x [τ_t])))
    (where K_1 (let [x hole] e))
    (↝ e_s K_1 e_t)
    ----------------------- "polyapp"

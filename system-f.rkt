@@ -103,7 +103,7 @@
    (@ x) x
    (@ x [a] y) ((x [a]) y)
    (let* ([x (λ (x : a) x)]) x) (let [x (λ (x : a) x)] x)
-   (let* ([x (λ (x : a) x)] [y x] [z y]) z) (let (x (λ (x : a) x)) (let (y x) (let (z y) z)))
+   (let* ([x (λ (x : a) x)] [y x] [z y]) z) (let [x (λ (x : a) x)] (let [y x] (let [z y] z)))
    (→* a) a
    (→* a b c) (→ a (→ b c))
    (→* (→ a b) c) (→ (→ a b) c)

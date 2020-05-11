@@ -314,7 +314,7 @@
     (let* ([the-id id] [the-idid (id [(∀ b (→ b b))])])
       (the-idid the-id)))
   (define-term app-id
-    (let (the-id id)
+    (let [the-id id]
       ((⟨ (λ () ([an-id : (∀ a (→ a a))]) (x : b) (an-id x)) [] (id) ⟩) y)))
 
   (test-->>
