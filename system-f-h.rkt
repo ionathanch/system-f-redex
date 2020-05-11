@@ -19,9 +19,10 @@
 (define-extended-language λF-H λF-ACC
   (l ::= variable-not-otherwise-mentioned) ;; Labels
   (s ::= τ *) ;; Sorts (types or the * kind)
-  (P ::= (let (p ...) e)) ;; A collection of programs
-  (p ::= [l ↦ (α ...) ([x : τ] ...) (y : s) e]) ;; Programs
   (v ::= x (⟨ l [σ ...] (v ...) ⟩)) ;; Values
+  (p ::= [l ↦ (α ...) ([x : τ] ...) (y : s) e]) ;; Code
+  (Φ ::= (p ...)) ;; Code context
+  (P ::= (let Φ e)) ;; Programs
 
   #:binding-forms
   (let ([l ↦
@@ -230,6 +231,58 @@
     #:term (∀ a (→ a a))]))
 
 
+;; Dynamic Semantics
+
+;; Big step semantics is more convenient here
+(define-judgement-form λF-H
+  #:contract (⇓ Φ e v)
+  #:mode (⇓ I I O)
+
+  [---------- "val"
+   (⇓ Φ v v)]
+
+  [(where x ,(variable-not-in (term c) 'y))
+   (⇓ Φ (let (x (v_1 v_2)) x) v)
+   ------------------ "comp-app"
+   (⇓ Φ (v_1 v_2) v)]
+
+  [(where x ,(variable-not-in (term c) 'y))
+   (⇓ Φ (let (x (v_1 [σ]])) x) v)
+   ------------------ "comp-polyapp"
+   (⇓ Φ (v_1 [σ]) v)]
+
+  [(⇓ Φ (substitute e x v) v_0)
+   ------------------------ "let"
+   (⇓ Φ (let (x v) e) v_0)]
+
+  [(where (l ↦ (α ...) (x ...) (y : _) e) (get-code l Φ))
+   (where e_2 (substitute
+                (substitute*
+                 (substitute* e (α ...) (σ ...))
+                 (x ...) (v ...))
+                y v_1))
+   (⇓ Φ e_2 v_2)
+   (⇓ Φ (let (x_1 v_2) e_1) v_0)
+   ------------------------------------------------------- "app"
+   (⇓ Φ (let (x_1 ((⟨ l [σ ...] (v ...) ⟩) v_1)) e_1) v_0)]
+
+  [(where (l ↦ (α ...) (x ...) (β : *) e) (get-code l Φ))
+   (where e_2 (substitute
+                (substitute*
+                 (substitute* e (α ...) (σ ...))
+                 (x ...) (v ...))
+                β σ_1))
+   (⇓ Φ e_2 v_2)
+   (⇓ Φ (let (x_1 v_2) e_1) v_0)
+   --------------------------------------------------------- "polyapp"
+   (⇓ Φ (let (x_1 ((⟨ l [σ ...] (v ...) ⟩) [σ_1])) e_1) v_0)])
+
+(define-metafunction λF-H
+  reduce : P -> v
+  [(reduce (let Φ e))
+   ,(first (judgement-holds (⇓ Φ e v) v))])
+
+
 ;; Metafunctions
 
 ;; The following metafunctions are neither desugaring ones
@@ -245,3 +298,12 @@
 ;; Returns e[v_1/x_1]...[v_n/x_n], also denoted e[v_1 .../x_1 ...]
 (define-metafunction/extension F.substitute* λF-H
   substitute* : any (x ..._1) (any ..._1) -> any)
+
+;; Get the code associated with given label
+(define-metafunction λF-H
+  get-code : l Φ -> p
+  ;; No base case: if the label isn't found, it's an error
+  [(get-code l ([l ↦ any_types any_terms any_arg e_body] _ ...))
+   (l ↦ any_types any_terms any_arg e_body)]
+  [(get-code l ([_ ↦ _ _ _ _] p ...))
+   (get-code l (p ...))])
