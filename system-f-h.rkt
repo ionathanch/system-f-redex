@@ -219,16 +219,17 @@
    (⊢ (let (p ...) e) τ)])
 
 (module+ test
-  (redex-judgement-equals-chk
-   (⊢)
-   [(let ([id-x ↦ (a) () (x : a) x]
+  (define-term id-id-term
+    (let ([id-x ↦ (a) () (x : a) x]
           [id-a ↦ () ([id-x : (tcode (a) () a a)]) (a : *) (⟨ id-x [a] () ⟩)])
       (let* ([id (⟨ id-a () (id-x) ⟩)]
              [id-id-type (id [(∀ a (→ a a))])]
              [id-id (id-id-type id)])
-        id-id))
-    τ #:pat τ
-    #:term (∀ a (→ a a))]))
+        id-id)))
+
+  (redex-judgement-equals-chk
+   (⊢)
+   [id-id-term τ #:pat τ #:term (∀ a (→ a a))]))
 
 
 ;; Dynamic Semantics
@@ -247,7 +248,7 @@
    (⇓ Φ (v_1 v_2) v)]
 
   [(where x ,(variable-not-in (term c) 'y))
-   (⇓ Φ (let (x (v_1 [σ]])) x) v)
+   (⇓ Φ (let (x (v_1 [σ])) x) v)
    ------------------ "comp-polyapp"
    (⇓ Φ (v_1 [σ]) v)]
 
@@ -255,23 +256,23 @@
    ------------------------ "let"
    (⇓ Φ (let (x v) e) v_0)]
 
-  [(where (l ↦ (α ...) (x ...) (y : _) e) (get-code l Φ))
+  [(where (l ↦ (α ...) ([x : _] ...) (y : _) e) (get-code l Φ))
    (where e_2 (substitute
-                (substitute*
-                 (substitute* e (α ...) (σ ...))
-                 (x ...) (v ...))
-                y v_1))
+               (substitute*
+                (substitute* e (α ...) (σ ...))
+                (x ...) (v ...))
+               y v_1))
    (⇓ Φ e_2 v_2)
    (⇓ Φ (let (x_1 v_2) e_1) v_0)
    ------------------------------------------------------- "app"
    (⇓ Φ (let (x_1 ((⟨ l [σ ...] (v ...) ⟩) v_1)) e_1) v_0)]
 
-  [(where (l ↦ (α ...) (x ...) (β : *) e) (get-code l Φ))
+  [(where (l ↦ (α ...) ([x : _] ...) (β : *) e) (get-code l Φ))
    (where e_2 (substitute
-                (substitute*
-                 (substitute* e (α ...) (σ ...))
-                 (x ...) (v ...))
-                β σ_1))
+               (substitute*
+                (substitute* e (α ...) (σ ...))
+                (x ...) (v ...))
+               β σ_1))
    (⇓ Φ e_2 v_2)
    (⇓ Φ (let (x_1 v_2) e_1) v_0)
    --------------------------------------------------------- "polyapp"
@@ -281,6 +282,10 @@
   reduce : P -> v
   [(reduce (let Φ e))
    ,(first (judgement-holds (⇓ Φ e v) v))])
+
+(module+ test
+  (redex-chk
+   (reduce id-id-term) (⟨ id-a () (id-x) ⟩)))
 
 
 ;; Metafunctions
