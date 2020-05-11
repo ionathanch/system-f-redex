@@ -21,6 +21,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ### System Fω (extends System F)
 * Why? I don't know.
+* Higher-kinded polymorphic lambda calculus with NO let-expressions
 * Type synthesis, term evaluation, type evaluation
 
 ### `redex-chk`, but Better
@@ -31,7 +32,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Implement hoisting pass!
+* Write tests for hoisting pass
 * Add booleans and if statements (this is of interest for ANF)
 * Consider adding fixpoints (this might be of interest for ACC... or not)
 * Reduction in ANF doesn't preserve ANF: fix that
