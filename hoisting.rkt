@@ -81,10 +81,12 @@
   [------------- "var"
    (↝v x () x)]
 
-  [(↝k k Φ l)
-   ;; do we need to translate σ ... and v ... ???
+  [(↝k k Φ_k l)
+   (↝τ σ_s σ_t) ...
+   (↝v v_s Φ_v v_t) ...
+   (where Φ (concat (Φ_k Φ_v ...)))
    -------------------------------------------------------- "(poly)fun"
-   (↝v (⟨ k [σ ...] (v ...) ⟩) Φ (⟨ l [σ ...] (v ...) ⟩))])
+   (↝v (⟨ k [σ_s ...] (v_s ...) ⟩) Φ (⟨ l [σ_t ...] (v_t ...) ⟩))])
 
 ;; [c] ↝ Φ c
 (define-judgement-form λH
@@ -132,3 +134,13 @@
   compile-type : τ -> τ
   [(compile-type τ_s)
    τ_t (judgement-holds (↝τ τ_s τ_t))])
+
+
+;; Other Metafunctions
+
+(define-metafunction λH
+  concat : ((p ...) ...) -> (p ...)
+  [(concat ()) ()]
+  [(concat ((p ...) any_r ...))
+   (p ... p_r ...)
+   (where (p_r ...) (concat (any_r ...)))])
