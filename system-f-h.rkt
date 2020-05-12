@@ -24,6 +24,11 @@
   (Φ ::= (p ...)) ;; Code context
   (P ::= (let Φ e)) ;; Programs
 
+  ;; TODO: Allow all e_bodys to refer to all ls.
+  ;; This may not be possible (using #:...bind);
+  ;; we may have to settle for e_bodys only able
+  ;; to refer to previous ls.
+  ;; Remember to uncomment hoisting tests afterwards.
   #:binding-forms
   (let ([l ↦
            (α ...) b #:refers-to (shadow α ...)
@@ -286,6 +291,11 @@
   [(reduce (let Φ e))
    ,(first (judgement-holds (⇓ Φ e v) (let Φ v)))])
 
+;; TODO: Reduction reduces the body of the global let to a single value.
+;; However, this value can be a closure that refers to a code block.
+;; Write a normalization metafunction that substitutes code blocks into
+;; closures, then carries on with regular reduction.
+;; This is essentially a de-hoister... possibly a backwards compilation step.
 (module+ test
   (define-term id-id-term-reduced
     (let ([id-x ↦ (a) () (x : a) x]

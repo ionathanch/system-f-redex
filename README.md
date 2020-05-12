@@ -17,7 +17,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 
 ### (ANF-Restricted) Hoisted System F (with Closures)
 * Type synthesis, CBV big-step semantics (implemented as a judgement rather than a reduction-relation)
-* Compiler from closure-converted System F to hoisted System F (not yet)
+* Compiler from closure-converted System F to hoisted System F
 
 ### System Fω (extends System F)
 * Why? I don't know.
@@ -32,10 +32,9 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Write tests for hoisting pass
+* Reduction in ANF doesn't preserve ANF: fix that (keyword: hereditary substitution)
 * Add booleans and if statements (this is of interest for ANF)
 * Consider adding fixpoints (this might be of interest for ACC... or not)
-* Reduction in ANF doesn't preserve ANF: fix that (keyword: hereditary substitution)
 * Fix ambiguity of ANF let-evaluation context after compilation
 * Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README
