@@ -135,6 +135,67 @@
   [(compile-type τ_s)
    τ_t (judgement-holds (↝τ τ_s τ_t))])
 
+(module+ test
+  (define-term id
+    (⟨ (Λ () () a
+          (⟨ (λ (a) () (x : a) x) [a] () ⟩))
+       () () ⟩))
+
+  (define-term const
+    (⟨ (Λ () () a
+          (⟨ (Λ (a) () b
+                (⟨ (λ (a b) () (x : a)
+                     (⟨ (λ (a b) ([x : a]) (y : b) x)
+                        [a b] (x) ⟩))
+                   [a b] () ⟩))
+             [a] () ⟩))
+       [] () ⟩))
+
+  (define-term id-id-term
+    (let* ([id-poly id]
+           [id-forall (id-poly [(∀ a (→ a a))])]
+           [id-id (id-forall id-poly)])
+      id-id))
+
+  (define-term id-H
+    (let ([l0 ↦ (a) () (x : a) x]
+          [l1 ↦ () () (a : *) (⟨ l0 [a] () ⟩)])
+      (⟨ l1 () () ⟩)))
+
+  (define-term const-H
+    (let ([l0 ↦ (a b) ([x : a]) (y : b) x]
+          [l1 ↦ (a b) () (x : a) (⟨ l0 [a b] (x) ⟩)]
+          [l2 ↦ (a) () (b : *) (⟨ l1 [a b] () ⟩)]
+          [l3 ↦ () () (a : *) (⟨ l2 [a] () ⟩)])
+      (⟨ l3 () () ⟩)))
+
+  (define-term id-id-term-H
+    (let ([l0 ↦ (a) () (x : a) x]
+          [l1 ↦ () () (a : *) (⟨ l0 [a] () ⟩)])
+      (let* ([id-poly (⟨ l1 () () ⟩)]
+             [id-forall (id-poly [(∀ a (→ a a))])]
+             [id-id (id-forall id-poly)])
+        id-id)))
+
+  (define-term id-compiled
+    (compile id))
+  (define-term const-compiled
+    (compile const))
+  (define-term id-id-term-compiled
+    (compile id-id-term))
+
+  #;(redex-chk
+   #:eq id-compiled id-H
+   #:eq (t.infer id-compiled) (compile-type (s.infer id)))
+
+  #;(redex-chk
+   #:eq const-compiled const-H
+   #:eq (t.infer const-compiled) (compile-type (s.infer const)))
+
+  #;(redex-chk
+   #:eq id-id-term-compiled id-id-term-H
+   #:eq (t.infer id-id-term-compiled) (compile-type (s.infer id-id-term))))
+
 
 ;; Other Metafunctions
 

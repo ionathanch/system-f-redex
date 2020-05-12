@@ -27,7 +27,7 @@
   #:binding-forms
   (let ([l ↦
            (α ...) b #:refers-to (shadow α ...)
-           (x : τ)   #:refers-to (shadow α ...)
+           (x : s)   #:refers-to (shadow α ...)
            e_body    #:refers-to (shadow α ... b x)]
         ...)
     e #:refers-to (shadow l ...)))
@@ -52,7 +52,10 @@
    (let ([f ↦ (b) ([u : b]) (v : b) (u v)]) f)
    #:eq
    (let ([f ↦ () () (u : a) u] [g ↦ () () (v : b) v]) (let [w (g c)] (f w)))
-   (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) y]) (let [z (k c)] (j z)))))
+   (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) y]) (let [z (k c)] (j z)))
+   #:eq
+   (let ((l0 ↦ () () (a : *) x)) x)
+   (let ((l1 ↦ () () (a : *) x)) x)))
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
@@ -279,13 +282,18 @@
    (⇓ Φ (let [x_1 ((⟨ l [σ ...] (v ...) ⟩) [σ_1])] e_1) v_0)])
 
 (define-metafunction λF-H
-  reduce : P -> v
+  reduce : P -> P
   [(reduce (let Φ e))
-   ,(first (judgement-holds (⇓ Φ e v) v))])
+   ,(first (judgement-holds (⇓ Φ e v) (let Φ v)))])
 
 (module+ test
+  (define-term id-id-term-reduced
+    (let ([id-x ↦ (a) () (x : a) x]
+          [id-a ↦ () ([id-x : (vcode (a) () a a)]) (a : *) (⟨ id-x [a] () ⟩)])
+      (⟨ id-a [] (id-x) ⟩)))
+
   (redex-chk
-   (reduce id-id-term) (⟨ id-a () (id-x) ⟩)))
+   #:eq (reduce id-id-term) id-id-term-reduced))
 
 
 ;; Metafunctions

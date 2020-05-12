@@ -148,6 +148,12 @@
   (define-term const
     (λ* (a b [x : a] [y : b]) x))
 
+  (define-term id-id-term
+    (let* ([id-poly id]
+           [id-forall (id-poly [(∀ a (→ a a))])]
+           [id-id (id-forall id-poly)])
+      id-id))
+
   (define-term id-ACC
     (⟨ (Λ () () a
           (⟨ (λ (a) () (x : a) x) [a] () ⟩))
@@ -163,20 +169,33 @@
              [a] () ⟩))
        [] () ⟩))
 
+  (define-term id-id-term-ACC
+    (let* ([id-poly id-ACC]
+           [id-forall (id-poly [(∀ a (→ a a))])]
+           [id-id (id-forall id-poly)])
+      id-id))
+
   (define-term id-compiled
     (compile id))
   (define-term const-compiled
     (compile const))
+  (define-term id-id-term-compiled
+    (compile id-id-term))
 
   (redex-chk
    #:eq id-compiled id-ACC
    #:eq (t.infer id-compiled) (compile-type (s.infer id))
-   #;(#:eq (t.normalize id-compiled) (s.normalize id)))
+   #:eq (t.normalize id-compiled) (compile (s.normalize id)))
 
   (redex-chk
    #:eq const-compiled const-ACC
    #:eq (t.infer const-compiled) (compile-type (s.infer const))
-   #;(#:eq (t.normalize const-compiled) (s.normalize const))))
+   #:eq (t.normalize const-compiled) (compile (s.normalize const)))
+
+  (redex-chk
+   #:eq id-id-term-compiled id-id-term-ACC
+   #:eq (t.infer id-id-term-compiled) (compile-type (s.infer id-id-term))
+   #:eq (t.normalize id-id-term-compiled) (compile (s.normalize id-id-term))))
 
 
 ;; Other Metafunctions
