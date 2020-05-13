@@ -17,14 +17,14 @@
 (define-language λF
   (α β ::= variable-not-otherwise-mentioned) ;; Type variables
   (x y ::= variable-not-otherwise-mentioned) ;; Term variables
-  (τ σ ::= α (→ τ τ) (∀ α τ)) ;; Types
-  (e   ::= x (λ (x : τ) e) (e e) (Λ α e) (e [τ]) (let [x e] e)) ;; Terms
+  (τ σ ::= α (→ τ τ) (∀ α τ) bool) ;; Types
+  (e   ::= x (λ (x : τ) e) (e e) (Λ α e) (e [τ]) (let [x e] e) #t #f (if e e e)) ;; Terms
 
   (Δ   ::= · (Δ α)) ;; Type contexts
   (Γ   ::= · (Γ (x : τ))) ;; Term contexts
 
-  (v   ::= x (λ (x : τ) e) (Λ α e)) ;; Values
-  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e)) ;; Evaluation contexts
+  (v   ::= x (λ (x : τ) e) (Λ α e) #t #f) ;; Values
+  (E   ::= hole (E e) (v E) (E [τ]) (let [x E] e) (if E e e)) ;; Evaluation contexts
   (F   ::= E (λ (x : τ) F) (Λ α F)) ;; Evaluation contexts (normalization)
 
   #:binding-forms
@@ -171,7 +171,10 @@
 
   [(⊢τ (Δ α) τ)
    ---------------- "τ-forall"
-   (⊢τ Δ (∀ α τ))])
+   (⊢τ Δ (∀ α τ))]
+
+  [------------ "τ-bool"
+   (⊢τ Δ bool)])
 
 (module+ test
   (redex-judgement-holds-chk
@@ -212,7 +215,19 @@
   [(⊢ Δ Γ e_x σ)
    (⊢ Δ (Γ (x : σ)) e τ)
    -------------------------- "let"
-   (⊢ Δ Γ (let [x e_x] e) τ)])
+   (⊢ Δ Γ (let [x e_x] e) τ)]
+
+  [---------------- "true"
+   (⊢ Δ Γ #t bool)]
+
+  [---------------- "false"
+   (⊢ Δ Γ #f bool)]
+
+  [(⊢ Δ Γ e_1 bool)
+   (⊢ Δ Γ e_2 τ)
+   (⊢ Δ Γ e_3 τ)
+   --------------------------- "if"
+   (⊢ Δ Γ (if e_1 e_2 e_3) τ)])
 
 ;; Places where α is used to pattern-match to any type variable
 ;; to test for an alpha-equivalent type have been marked with ;; α
@@ -225,7 +240,11 @@
    [((Λ a (λ (x : a) x)) [b]) (→ b b)]
    [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [b])
     (→ b (∀ α (→ α b)))] ;; α
-   [(let [x (Λ a (λ (y : a) y))] (@ x [(∀ a (→ a a))] x)) (∀ a (→ a a))]))
+   [(let [x (Λ a (λ (y : a) y))] (@ x [(∀ a (→ a a))] x)) (∀ a (→ a a))]
+   [#t bool]
+   [#f bool]
+   [(if ((λ (b : bool) b) #t) (λ (b : bool) b) (λ (b : bool) b)) (→ bool bool)]
+   [(if #t (if #f #t #f) #f) bool]))
 
 (define-metafunction λF
   infer : e -> τ
@@ -247,7 +266,13 @@
         "τ")
    (--> (let [x v] e) ;; CBV
         (substitute e x v)
-        "ζ")))
+        "ζ")
+   (--> (if #t e_1 e_2)
+        e_1
+        "ιt")
+   (--> (if #f e_1 e_2)
+        e_2
+        "ιf")))
 
 ;; Compatible closure of ⟶
 (define ⟶*
@@ -289,6 +314,14 @@
    ⟶*
    (term (let [x y] (x x)))
    (term (y y)))
+  (test-->>
+   ⟶*
+   (term ((λ (b : bool) (if b #f #t)) #f))
+   (term #t))
+  (test-->>
+   ⟶*
+   (term ((λ (b : bool) (if b #f #t)) #t))
+   (term #f))
   (test-->>
    ⟶*
    (term (@ (let [x (λ* (a [y : a]) y)]
