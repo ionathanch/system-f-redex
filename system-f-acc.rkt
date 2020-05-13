@@ -265,37 +265,37 @@
 ;; Dynamic Semantics
 
 (define ⟶
-  (extend-reduction-relation
-   F.⟶ λF-ACC
+  (reduction-relation
+   λF-ACC
    (--> (let [x v] e)
         (substitute e x v)
         "ζ")
-   (--> ((⟨ (Λ (α ...) ([x : _] ...) β e) [σ ...] (v ...) ⟩) [σ_1])
-        (substitute
-         (substitute*
-          (substitute* e (α ...) (σ ...))
-          (x ...) (v ...))
-         β σ_1)
-        "τ")
-   (--> ((⟨ (λ (α ...) ([x : _] ...) (y : _) e) [σ ...] (v ...) ⟩) v_1)
-        (substitute
-         (substitute*
-          (substitute* e (α ...) (σ ...))
-          (x ...) (v ...))
-         y v_1)
-        "β")))
-
-(define ⟶*
-  (context-closure ⟶ λF-ACC E))
+   (--> (in-hole E ((⟨ (λ (α ...) ([x : _] ...) (y : _) e) [σ ...] (v ...) ⟩) v_1))
+        (in-hole M (in-hole E c))
+        (where (in-hole M c)
+               (substitute
+                (substitute*
+                 (substitute* e (α ...) (σ ...))
+                 (x ...) (v ...))
+                y v_1))
+        "β")
+   (--> (in-hole E ((⟨ (Λ (α ...) ([x : _] ...) β e) [σ ...] (v ...) ⟩) [σ_1]))
+        (in-hole M (in-hole E c))
+        (where (in-hole M c)
+               (substitute
+                (substitute*
+                 (substitute* e (α ...) (σ ...))
+                 (x ...) (v ...))
+                β σ_1))
+        "τ")))
 
 (define-metafunction λF-ACC
-  reduce : e -> v
+  reduce : e -> e
   [(reduce e)
-   ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
+   ,(first (apply-reduction-relation* ⟶ (term e) #:cache-all? #t))])
 
 (define-extended-language λF-ACC⇓ λF-ACC
-  (app ::= x (app v) (app [τ]))
-  (v ::= .... app))
+  (v ::= .... (x v) (x [τ])))
 
 (define ⇓
   (context-closure ⟶ λF-ACC⇓ F))
@@ -318,7 +318,7 @@
       ((⟨ (λ () ([an-id : (∀ a (→ a a))]) (x : b) (an-id x)) [] (id) ⟩) y)))
 
   (test-->>
-   ⟶*
+   ⟶
    (term idid-id)
    (term id))
 

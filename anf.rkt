@@ -47,16 +47,16 @@
   #:contract (↝τ τ τ)
   #:mode (↝τ I O)
 
-  [---------- "τ-var"
+  [--------- "τ-var"
    (↝τ α α)]
 
   [(↝τ σ_s σ_t)
    (↝τ τ_s τ_t)
-   ------------------------------ "τ-fun"
+   ----------------------------- "τ-fun"
    (↝τ (→ σ_s τ_s) (→ σ_t τ_t))]
 
   [(↝τ τ_s τ_t)
-   -------------------------- "τ-poly"
+   ------------------------- "τ-poly"
    (↝τ (∀ α τ_s) (∀ α τ_t))])
 
 ;; [e]K ↝ e
@@ -65,13 +65,13 @@
   #:mode (↝ I I O)
 
   ;; [x]K = K[x]
-  [--------------------- "var"
+  [---------------------- "var"
    (↝ x K (in-hole K x))]
 
   ;; [(λ (x : τ) e)]K = K[(λ (x : [τ]) [e])]
   [(↝τ τ_s τ_t)
    (↝ e_s hole e_t)
-   ----------------------------------------------------- "fun"
+   ------------------------------------------------------ "fun"
    (↝ (λ (x : τ_s) e_s) K (in-hole K (λ (x : τ_t) e_t)))]
 
   ;; [(e_1 e_2)] = [e_1](let [x_1 ∘] [e_2](let [x_2 ∘] K[(x_1 x_2)]))
@@ -81,12 +81,12 @@
    (↝ e_2s K_2 e_2t)
    (where K_1 (let [x_1 hole] e_2t))
    (↝ e_1s K_1 e_1t)
-   ------------------------ "app"
+   ----------------------- "app"
    (↝ (e_1s e_2s) K e_1t)]
 
   ;; [(Λ α e)]K = K[(Λ α [e])]
   [(↝ e_s hole e_t)
-   ------------------------------------- "polyfun"
+   -------------------------------------- "polyfun"
    (↝ (Λ α e_s) K (in-hole K (Λ α e_t)))]
 
   ;; [(e [τ])]K = [e](let [x ∘] K[(x [[τ]])])
@@ -95,14 +95,14 @@
    (where e (in-hole K (x [τ_t])))
    (where K_1 (let [x hole] e))
    (↝ e_s K_1 e_t)
-   ----------------------- "polyapp"
+   ---------------------- "polyapp"
    (↝ (e_s [τ_s]) K e_t)]
 
   ;; [(let [x e_1] e_2)]K = [e_1](let [x ∘] [e_2]K)
   [(↝ e_2s K e_2t)
    (where K_1 (let [x hole] e_2t))
    (↝ e_1s K_1 e_1t)
-   -------------------------------- "let"
+   ------------------------------- "let"
    (↝ (let [x e_1s] e_2s) K e_1t)])
 
 
@@ -113,8 +113,9 @@
 ;; - (let [x c] x)     ⟶ c
 
 (define-extended-language λANF⇓ λANF
-  ;; This context causes ambiguous evaluation order!
-  (G ::= hole (λ (x : τ) G) (Λ α G) (let [x G] e) (let [x c] G)))
+  (d ::= (λ (x : τ) f) (Λ α f) (v v) (v [σ])) ;; Variable-less computations
+  (f ::= v (let [x d] f)) ;; Variable-less bindings
+  (G ::= hole (λ (x : τ) G) (Λ α G) (let [x G] e) (let [x d] G)))
 
 ;; Reduction of redundant bindings
 (define ⟶
@@ -194,7 +195,7 @@
   (redex-chk
    #:eq neg-compiled neg-ANF
    #:eq (t.infer neg-compiled) (compile-type (s.infer neg))
-   #:eq (t.normalize neg-compiled) (s.normalize neg))
+   #:eq (t.normalize neg-compiled) (t.normalize (compile (s.normalize neg))))
 
   #;(for ([_ (range 10)])
     (redex-let* λANF

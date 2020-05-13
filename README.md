@@ -7,7 +7,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Church encodings of numerals and arithmetic (in progress)
 
 ### ANF-Restricted System F
-* Type synthesis, CBV small-step semantics (does NOT preserve ANF!)
+* Type synthesis, CBV small-step semantics
 * Uses Redex's `in-hole` contexts for continuations used during compilation
 * Compiler from System F to ANF-restricted System F (defined with an ambient continuation)
 
@@ -32,10 +32,8 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Reduction in ANF doesn't preserve ANF: fix that (keyword: hereditary substitution)
 * Add booleans and if statements (this is of interest for ANF)
 * Consider adding fixpoints (this might be of interest for ACC... or not)
-* Fix ambiguity of ANF let-evaluation context after compilation
 * Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README
 * Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (redex-chk)

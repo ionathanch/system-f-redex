@@ -17,24 +17,19 @@
 ;; Syntax
 
 (define-extended-language λF-H λF-ACC
-  (l ::= variable-not-otherwise-mentioned) ;; Labels
   (s ::= τ *) ;; Sorts (types or the * kind)
+  (l ::= variable-not-otherwise-mentioned) ;; Labels
   (v ::= x (⟨ l [σ ...] (v ...) ⟩)) ;; Values
   (p ::= [l ↦ (α ...) ([x : τ] ...) (y : s) e]) ;; Code
   (Φ ::= (p ...)) ;; Code context
   (P ::= (let Φ e)) ;; Programs
 
-  ;; TODO: Allow all e_bodys to refer to all ls.
-  ;; This may not be possible (using #:...bind);
-  ;; we may have to settle for e_bodys only able
-  ;; to refer to previous ls.
-  ;; Remember to uncomment hoisting tests afterwards.
   #:binding-forms
   (let ([l ↦
            (α ...) b #:refers-to (shadow α ...)
            (x : s)   #:refers-to (shadow α ...)
            e_body    #:refers-to (shadow α ... b x)]
-        ...)
+        ...) #:refers-to (shadow l ...)
     e #:refers-to (shadow l ...)))
 
 (default-language λF-H)
@@ -59,8 +54,11 @@
    (let ([f ↦ () () (u : a) u] [g ↦ () () (v : b) v]) (let [w (g c)] (f w)))
    (let ([j ↦ () () (x : a) x] [k ↦ () () (y : b) y]) (let [z (k c)] (j z)))
    #:eq
-   (let ((l0 ↦ () () (a : *) x)) x)
-   (let ((l1 ↦ () () (a : *) x)) x)))
+   (let ([l0 ↦ () () (a : *) x]) x)
+   (let ([l1 ↦ () () (a : *) x]) x)
+   #:eq
+   (let ([l0 ↦ (a) () (x : a) x] [l1 ↦ () () (a : *) (⟨ l0 [a] () ⟩)]) (⟨ l1 [] () ⟩))
+   (let ([k0 ↦ (a) () (x : a) x] [k1 ↦ () () (a : *) (⟨ k0 [a] () ⟩)]) (⟨ k1 [] () ⟩))))
 
 ;; Unroll (λ* (a_1 ... a_n) e) into (L a_1 ... (L a_n e))
 ;; where (L ::= λ Λ) (a ::= [x : τ] α)
@@ -189,7 +187,7 @@
    (⊢e Δ Γ (let [x c] e) τ)])
 
 ;; ⊢ p : τ
-;; Copied from λF-ACC's ⊢k, but with λ, Λ ↝ l ↦
+;; Copied from λF-ACC's ⊢k, but with λ, Λ -> l ↦
 ;; If P contained letrecs, then l : (code (α ...) (τ ...) σ_1 σ_2) would be in Γ+
 (define-judgement-form λF-H
   #:contract (⊢p p τ)
@@ -291,11 +289,15 @@
   [(reduce (let Φ e))
    ,(first (judgement-holds (⇓ Φ e v) (let Φ v)))])
 
-;; TODO: Reduction reduces the body of the global let to a single value.
-;; However, this value can be a closure that refers to a code block.
-;; Write a normalization metafunction that substitutes code blocks into
-;; closures, then carries on with regular reduction.
-;; This is essentially a de-hoister... possibly a backwards compilation step.
+;; [Note] Program Equality
+;; This isn't really a good way to test, since compilation isn't guaranteed to
+;; produce code blocks in a certain order, or to produce only those code blocks
+;; that are actually needed. Ideally, we'd define a ≼ relation between programs,
+;; where P ≼ Q iff P contains a permutation of a subset of the code blocks in Q.
+;; A whole-program compiler correctness test would then look something like this:
+;;   (compile (s.normalize P)) ≼ (t.normalize (compile P))
+;; where t.normalize must also normalize each code block.
+;; I suspect normalizing the source may only reduce the number of closures.
 (module+ test
   (define-term id-id-term-reduced
     (let ([id-x ↦ (a) () (x : a) x]
@@ -307,10 +309,7 @@
 
 
 ;; Metafunctions
-
-;; The following metafunctions are neither desugaring ones
-;; nor convenience evaluation ones, and are nontrivial
-;; to both static and dynamic semantics
+;; substitute*(*) copied from λF-ACC
 
 ;; (substitute** (τ_0 ... τ_n) (α ...) (σ ...))
 ;; Returns (τ_0[σ .../α ...] ... τ_n[σ .../α ...])

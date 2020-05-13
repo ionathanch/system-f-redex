@@ -18,11 +18,14 @@
 
 (define-extended-language λF-ANF λF
   (v ::= x (λ (x : τ) e) (Λ α e)) ;; Values
-  (c ::= v (v v) (v [τ])) ;; Computations
+  (c ::= v (v v) (v [σ])) ;; Computations
   (e ::= c (let [x c] e)) ;; Configurations
 
   (E ::= hole (let [x hole] e)) ;; Evaluation contexts
+  (F ::= .... (let [x c] F))    ;; Evaluation contexts (normalization)
+
   (K ::= hole (let [x hole] e)) ;; Continuation contexts
+  (M ::= hole (let [x c] M))    ;; Composition contexts
 
   #:binding-forms
   (let [x ∘] e #:refers-to x))
@@ -245,47 +248,56 @@
 ;; Dynamic Semantics
 
 (define ⟶
-  (extend-reduction-relation
-   F.⟶ λF-ANF))
-
-(define ⟶*
-  (context-closure ⟶ λF-ANF E))
+  (reduction-relation
+   λF-ANF
+   (--> (let [x v] e)
+        (substitute e x v)
+        "ζ")
+   (--> (in-hole E ((λ (x : τ) e) v))
+        (in-hole M (in-hole E c))
+        (where (in-hole M c) (substitute e x v))
+        "β")
+   (--> (in-hole E ((Λ α e) [τ]))
+        (in-hole M (in-hole E c))
+        (where (in-hole M c) (substitute e α τ))
+        "τ")))
 
 (define-metafunction λF-ANF
   reduce : e -> v
   [(reduce e)
-   ,(first (apply-reduction-relation* ⟶* (term e) #:cache-all? #t))])
-
-;; The notion of a value being something for which no more computation can occur
-;; is somewhat at odds with the notion of a value being something that cannot
-;; be reduced any further from the perspective of normalization
-(define-extended-language λF-ANF⇓ λF-ANF
-  (app ::= x (app v) (app [τ]))
-  (v ::= .... app))
+   ,(first (apply-reduction-relation* ⟶ (term e) #:cache-all? #t))])
 
 (define ⇓
-  (context-closure ⟶ λF-ANF⇓ F))
+  (context-closure ⟶ λF-ANF F))
 
-(define-metafunction λF-ANF⇓
+(define-metafunction λF-ANF
   normalize : e -> v
   [(normalize e)
    ,(first (apply-reduction-relation* ⇓ (term e) #:cache-all? #t))])
 
 (module+ test
   (test-->
-   ⟶*
+   ⟶
    (term ((λ (x : a) x) (λ (y : b) y)))
    (term (λ (y : b) y)))
   (test-->
-   ⟶*
+   ⟶
    (term ((Λ a (λ (x : a) x)) [(∀ b b)]))
    (term (λ (x : (∀ b b)) x)))
   (test-->
-   ⟶*
+   ⟶
    (term (let [x y] (x x)))
    (term (y y)))
+  (test-->
+   ⟶
+   (term (let [f ((λ (x : a)
+                    (let [y x] y)) z)]
+           f))
+   (term (let* ([y z]
+                [f y])
+           f)))
   (test-->>
-   ⟶*
+   ⟶
    (term (let* ([x (λ* (a [y : a]) y)]
                 [y (x [(∀ a (→ a a))])]
                 [z (y x)]
@@ -299,9 +311,9 @@
    (term (λ (x : a) x)))
   (test-->>
    ⇓
-   (term (λ* ([x : a] [f : (→ a a)]) (let [y (f x)] y)))
-   (term (λ* ([x : a] [f : (→ a a)]) (f x))))
-  (test-->
+   (term (λ* ([x : a] [f : (→ a a)]) (let* ([z x] [y (f z)]) y)))
+   (term (λ* ([x : a] [f : (→ a a)]) (let [y (f x)] y))))
+  (test-->>
    ⇓
-   (term ((λ (x : a) x) ((z [a]) (λ (y : b) y))))
-   (term ((z [a]) (λ (y : b) y)))))
+   (term (λ (g : b) (let* ([h (g g)] [f (λ (y : a) y)]) (g f))))
+   (term (λ (g : b) (let* ([h (g g)]) (g (λ (y : a) y)))))))

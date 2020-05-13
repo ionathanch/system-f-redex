@@ -184,15 +184,18 @@
   (define-term id-id-term-compiled
     (compile id-id-term))
 
-  #;(redex-chk
+  ;; See the Program Equality note in system-f-h.rkt for why
+  ;; these tests lack a compiler correctness test
+
+  (redex-chk
    #:eq id-compiled id-H
    #:eq (t.infer id-compiled) (compile-type (s.infer id)))
 
-  #;(redex-chk
+  (redex-chk
    #:eq const-compiled const-H
    #:eq (t.infer const-compiled) (compile-type (s.infer const)))
 
-  #;(redex-chk
+  (redex-chk
    #:eq id-id-term-compiled id-id-term-H
    #:eq (t.infer id-id-term-compiled) (compile-type (s.infer id-id-term))))
 
