@@ -10,6 +10,8 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Type synthesis, CBV small-step semantics
 * Uses Redex's `in-hole` contexts for continuations used during compilation
 * Compiler from System F to ANF-restricted System F (defined with an ambient continuation)
+  * The naïve version copies the continuation twice when compiling if expressions
+  * The improved version will be defined over System F's typing rules and avoids code copying
 
 ### (ANF-Restricted) System F with Closures
 * Type synthesis, CBV small-step semantics that evaluate closures during application
