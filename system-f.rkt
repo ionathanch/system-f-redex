@@ -18,7 +18,8 @@
   (α β ::= variable-not-otherwise-mentioned) ;; Type variables
   (x y ::= variable-not-otherwise-mentioned) ;; Term variables
   (τ σ ::= α (→ τ τ) (∀ α τ) bool) ;; Types
-  (e   ::= x (λ (x : τ) e) (e e) (Λ α e) (e [τ]) (let [x e] e) #t #f (if e e e)) ;; Terms
+  (b   ::= #t #f) ;; Booleans
+  (e   ::= x (λ (x : τ) e) (e e) (Λ α e) (e [τ]) (let [x e] e) b (if e e e)) ;; Terms
 
   (Δ   ::= · (Δ α)) ;; Type contexts
   (Γ   ::= · (Γ (x : τ))) ;; Term contexts
@@ -148,7 +149,7 @@
    [#:f x a (· (y : a))]
    [#:f x b (· (x : a))]
    [x a (· (x : a))]
-   [x (→ a b) (Γ* (y : a) (x : (→ a b)))])
+   [x (→ u w) (Γ* (y : a) (x : (→ u w)))])
 
   (redex-judgement-holds-chk
    ∈Δ
@@ -217,29 +218,26 @@
    -------------------------- "let"
    (⊢ Δ Γ (let [x e_x] e) τ)]
 
-  [---------------- "true"
-   (⊢ Δ Γ #t bool)]
+  [--------------- "bool"
+   (⊢ Δ Γ b bool)]
 
-  [---------------- "false"
-   (⊢ Δ Γ #f bool)]
-
-  [(⊢ Δ Γ e_1 bool)
+  [(⊢ Δ Γ e_0 bool)
+   (⊢ Δ Γ e_1 τ)
    (⊢ Δ Γ e_2 τ)
-   (⊢ Δ Γ e_3 τ)
    --------------------------- "if"
-   (⊢ Δ Γ (if e_1 e_2 e_3) τ)])
+   (⊢ Δ Γ (if e_0 e_1 e_2) τ)])
 
 ;; Places where α is used to pattern-match to any type variable
 ;; to test for an alpha-equivalent type have been marked with ;; α
 (module+ test  
   (redex-judgement-holds-chk
-   (⊢ (Δ* a b) ·)
+   (⊢ (Δ* a u) ·)
    [(λ (x : a) x) (→ a a)]
    [((λ (x : (→ a a)) x) (λ (x : a) x)) (→ a a)]
    [(Λ a (λ (x : a) x)) (∀ α (→ α α))] ;; α
-   [((Λ a (λ (x : a) x)) [b]) (→ b b)]
-   [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [b])
-    (→ b (∀ α (→ α b)))] ;; α
+   [((Λ a (λ (x : a) x)) [u]) (→ u u)]
+   [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [u])
+    (→ u (∀ α (→ α u)))] ;; α
    [(let [x (Λ a (λ (y : a) y))] (@ x [(∀ a (→ a a))] x)) (∀ a (→ a a))]
    [#t bool]
    [#f bool]

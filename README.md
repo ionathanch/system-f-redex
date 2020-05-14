@@ -32,7 +32,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Add booleans and if statements (this is of interest for ANF)
+* Reimplement ANF translation over typing rules to avoid copying continuation in compilation of if expressions
 * Consider adding fixpoints (this might be of interest for ACC... or not)
 * Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README

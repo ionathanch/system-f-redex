@@ -17,9 +17,9 @@
 ;; Syntax
 
 (define-extended-language λF-ANF λF
-  (v ::= x (λ (x : τ) e) (Λ α e)) ;; Values
+  (v ::= x (λ (x : τ) e) (Λ α e) #t #f) ;; Values
   (c ::= v (v v) (v [σ])) ;; Computations
-  (e ::= c (let [x c] e)) ;; Configurations
+  (e ::= c (let [x c] e) (if v e e)) ;; Configurations
 
   (E ::= hole (let [x hole] e)) ;; Evaluation contexts
   (F ::= .... (let [x c] F))    ;; Evaluation contexts (normalization)
@@ -118,7 +118,7 @@
    [#:f x a (· (y : a))]
    [#:f x b (· (x : a))]
    [x a (· (x : a))]
-   [x (→ a b) (Γ* (y : a) (x : (→ a b)))])
+   [x (→ a u) (Γ* (y : a) (x : (→ a u)))])
 
   (redex-judgement-holds-chk
    ∈Δ
@@ -147,8 +147,11 @@
    (⊢v Δ Γ (λ (x : σ) e) (→ σ τ))]
 
   [(⊢e (Δ α) Γ e τ)
-   -------------------------- "polyfun"
-   (⊢v Δ Γ (Λ α e) (∀ α τ))])
+   ------------------------- "polyfun"
+   (⊢v Δ Γ (Λ α e) (∀ α τ))]
+
+  [---------------- "bool"
+   (⊢v Δ Γ b bool)])
 
 ;; Δ Γ ⊢ c : τ
 (define-judgement-form λF-ANF
@@ -181,7 +184,13 @@
   [(⊢c Δ Γ c σ)
    (⊢e Δ (Γ (x : σ)) e τ)
    ------------------------- "let"
-   (⊢e Δ Γ (let [x c] e) τ)])
+   (⊢e Δ Γ (let [x c] e) τ)]
+
+  [(⊢v Δ Γ v bool)
+   (⊢e Δ Γ e_1 τ)
+   (⊢e Δ Γ e_2 τ)
+   -------------------------- "if"
+   (⊢e Δ Γ (if v e_1 e_2) τ)])
 
 ;; Places where α is used to pattern-match to any type variable
 ;; to test for an alpha-equivalent type have been marked with ;; α
@@ -193,14 +202,14 @@
    [(Λ a (λ (x : a) x)) (∀ α (→ α α))])  ;; α
 
   (redex-judgement-holds-chk
-   (⊢c (Δ* a b) ·)
+   (⊢c (Δ* a u) ·)
    [((λ (x : (→ a a)) x) (λ (x : a) x)) (→ a a)]
-   [((Λ a (λ (x : a) x)) [b]) (→ b b)]
-   [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [b])
-    (→ b (∀ α (→ α b)))]) ;; α
+   [((Λ a (λ (x : a) x)) [u]) (→ u u)]
+   [((Λ a (λ (x : a) (Λ a (λ (y : a) x)))) [u])
+    (→ u (∀ α (→ α u)))]) ;; α
 
   (redex-judgement-holds-chk
-   (⊢e (Δ* a b) ·)
+   (⊢e (Δ* a u) ·)
    [(let [x (Λ a (λ (y : a) y))] x) (∀ α (→ α α))] ;; α
    [(let* ([x (Λ a (λ (y : a) y))]
            [y x])
@@ -208,12 +217,17 @@
     (∀ α (→ α α))] ;; α
    [(let* ([x (Λ a (λ (y : a) y))]
            [y x])
-      (y [(∀ b (→ b b))]))
-    (→ (∀ b (→ b b)) (∀ b (→ b b)))]
+      (y [(∀ u (→ u u))]))
+    (→ (∀ u (→ u u)) (∀ u (→ u u)))]
    [(let* ([x (Λ a (λ (y : a) y))]
-           [y (x [(∀ b (→ b b))])])
+           [y (x [(∀ u (→ u u))])])
       y)
-    (→ (∀ b (→ b b)) (∀ b (→ b b)))]))
+    (→ (∀ u (→ u u)) (∀ u (→ u u)))]
+   [(let* ([id-fn (λ (f : (→ bool bool)) f)]
+           [id (λ (b : bool) b)]
+           [neg (λ (b : bool) (if b #f #t))])
+      (if #f (id-fn id) (let [n neg] n)))
+    (→ bool bool)]))
 
 ;; Δ Γ ⊢ K : τ ⇒ τ
 (define-judgement-form λF-ANF
@@ -260,7 +274,13 @@
    (--> (in-hole E ((Λ α e) [τ]))
         (in-hole M (in-hole E c))
         (where (in-hole M c) (substitute e α τ))
-        "τ")))
+        "τ")
+   (--> (if #t e_1 e_2)
+        e_1
+        "ιt")
+   (--> (if #f e_1 e_2)
+        e_2
+        "ιf")))
 
 (define-metafunction λF-ANF
   reduce : e -> v
@@ -306,9 +326,24 @@
            u))
    (term (λ (y : b) y)))
   (test-->>
+   ⟶
+   (term (let* ([id-fn (λ (f : (→ bool bool)) f)]
+                [id (λ (b : bool) b)]
+                [neg (λ (b : bool) (if b #f #t))])
+           (if #f (id-fn id) (let [n neg] n))))
+   (term (λ (b : bool) (if b #f #t))))
+  (test-->>
    ⇓
    (term (λ (x : a) ((λ (y : b) y) x)))
    (term (λ (x : a) x)))
+  (test-->>
+   ⇓
+   (term (λ (b : bool) (if #t b #f)))
+   (term (λ (b : bool) b)))
+  (test-->>
+   ⇓
+   (term (λ (b : bool) (let [bb ((λ (x : bool) x) b)] bb)))
+   (term (λ (b : bool) b)))
   (test-->>
    ⇓
    (term (λ* ([x : a] [f : (→ a a)]) (let* ([z x] [y (f z)]) y)))

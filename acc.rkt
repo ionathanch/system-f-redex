@@ -200,9 +200,6 @@
 
 ;; Other Metafunctions
 
-;; The following metafunctions are neither desugaring ones
-;; nor convenience evaluation ones, and are nontrivial
-
 ;; Returns free type variables in given types
 (define-metafunction s.λF-ANF
   free-type-vars-types : (τ ...) -> (α ...)

@@ -57,7 +57,10 @@
 
   [(↝τ τ_s τ_t)
    ------------------------- "τ-poly"
-   (↝τ (∀ α τ_s) (∀ α τ_t))])
+   (↝τ (∀ α τ_s) (∀ α τ_t))]
+
+  [---------------- "bool"
+   (↝τ bool bool)])
 
 ;; [e]K ↝ e
 (define-judgement-form λANF
@@ -66,17 +69,17 @@
 
   ;; [x]K = K[x]
   [---------------------- "var"
-   (↝ x K (in-hole K x))]
+   (↝ x K (in-hole* K x))]
 
   ;; [(λ (x : τ) e)]K = K[(λ (x : [τ]) [e])]
   [(↝τ τ_s τ_t)
    (↝ e_s hole e_t)
    ------------------------------------------------------ "fun"
-   (↝ (λ (x : τ_s) e_s) K (in-hole K (λ (x : τ_t) e_t)))]
+   (↝ (λ (x : τ_s) e_s) K (in-hole* K (λ (x : τ_t) e_t)))]
 
   ;; [(e_1 e_2)] = [e_1](let [x_1 ∘] [e_2](let [x_2 ∘] K[(x_1 x_2)]))
-  [(where (x_1 x_2) ,(variables-not-in (term (K e_1s e_2s)) '(y y)))
-   (where e (in-hole K (x_1 x_2)))
+  [(where (x_1 x_2) ,(variables-not-in (term (K e_1s e_2s)) '(f y)))
+   (where e (in-hole* K (x_1 x_2)))
    (where K_2 (let [x_2 hole] e))
    (↝ e_2s K_2 e_2t)
    (where K_1 (let [x_1 hole] e_2t))
@@ -87,12 +90,12 @@
   ;; [(Λ α e)]K = K[(Λ α [e])]
   [(↝ e_s hole e_t)
    -------------------------------------- "polyfun"
-   (↝ (Λ α e_s) K (in-hole K (Λ α e_t)))]
+   (↝ (Λ α e_s) K (in-hole* K (Λ α e_t)))]
 
   ;; [(e [τ])]K = [e](let [x ∘] K[(x [[τ]])])
   [(↝τ τ_s τ_t)
-   (where x ,(variable-not-in (term (K e_s)) 'y))
-   (where e (in-hole K (x [τ_t])))
+   (where x ,(variable-not-in (term (K e_s)) 'f))
+   (where e (in-hole* K (x [τ_t])))
    (where K_1 (let [x hole] e))
    (↝ e_s K_1 e_t)
    ---------------------- "polyapp"
@@ -103,40 +106,28 @@
    (where K_1 (let [x hole] e_2t))
    (↝ e_1s K_1 e_1t)
    ------------------------------- "let"
-   (↝ (let [x e_1s] e_2s) K e_1t)])
+   (↝ (let [x e_1s] e_2s) K e_1t)]
+
+  ;; [b]K = K[b]
+  [----------------------- "bool"
+   (↝ b K (in-hole* K b))]
+
+  ;; [(if e_0 e_1 e_2)]K = [e_0](let [x ∘] (if x [e_1]K [e_2]K))
+  [(↝ e_1s K e_1t)
+   (↝ e_2s K e_2t)
+   (where x ,(variable-not-in (term (K (if e_0 e_1 e_2))) 'y))
+   (where K_0 (let [x hole] (if x e_1t e_2t)))
+   (↝ e_0s K_0 e_0t)
+   -------------------------------- "if"
+   (↝ (if e_0s e_1s e_2s) K e_0t)])
 
 
 ;; Compilation Convenience Metafunctions
 
-;; Eliminate redundant bindings:
-;; - (let [x_1 x_2] e) ⟶ e[x_2/x_1]
-;; - (let [x c] x)     ⟶ c
-
-(define-extended-language λANF⇓ λANF
-  (d ::= (λ (x : τ) f) (Λ α f) (v v) (v [σ])) ;; Variable-less computations
-  (f ::= v (let [x d] f)) ;; Variable-less bindings
-  (G ::= hole (λ (x : τ) G) (Λ α G) (let [x G] e) (let [x d] G)))
-
-;; Reduction of redundant bindings
-(define ⟶
-  (reduction-relation
-   λANF
-   (--> (let [x_1 x_2] e)
-        (substitute e x_1 x_2)
-        "ζ-bind")
-   (--> (let [x c] x)
-        c
-        "ζ-body")))
-
-;; Compatible closure of ⟶
-(define ⟶*
-  (context-closure ⟶ λANF⇓ G))
-
-;; Reflexive, transitive closure of ⟶*
 (define-metafunction λANF
   compile : e -> e
   [(compile e)
-   ,(first (apply-reduction-relation* ⟶* (term e_anf) #:cache-all? #t))
+   e_anf
    (judgement-holds (↝ e hole e_anf))])
 
 (define-metafunction λANF
@@ -165,28 +156,28 @@
    #:eq (t.infer id-id-compiled) (compile-type (s.infer id-id))
    #:eq (t.normalize id-id-compiled) (s.normalize id-id))
 
-  (define-term bool
+  (define-term boolean
     (∀ b (→* b b b)))
   (define-term true
     (λ* (a [x : a] [y : a]) x))
   (define-term false
     (λ* (a [x : a] [y : a]) y))
   (define-term if-bool
-    (λ* (a [t : a] [f : a] [b : bool]) (@ b [a] t f)))
+    (λ* (a [t : a] [f : a] [b : boolean]) (@ b [a] t f)))
   (define-term neg
-    (@ if-bool [bool] false true))
+    (@ if-bool [boolean] false true))
 
   (define-term neg-compiled
     (compile neg))
 
   (define-term if-bool-ANF
-    (λ* (a [t : a] [f : a] [b : bool])
+    (λ* (a [t : a] [f : a] [b : boolean])
         (let* ([ba (b [a])]
                [bat (ba t)])
           (bat f))))
   (define-term neg-ANF
     (let* ([ifb if-bool-ANF]
-           [ifbb (ifb [bool])]
+           [ifbb (ifb [boolean])]
            [f false]
            [ifbbf (ifbb f)]
            [t true])
@@ -197,14 +188,51 @@
    #:eq (t.infer neg-compiled) (compile-type (s.infer neg))
    #:eq (t.normalize neg-compiled) (t.normalize (compile (s.normalize neg))))
 
+  (define-term not
+    (λ (b : bool)
+      ((λ (x : bool) x)
+       (if ((λ (x : bool) x) b)
+           (let [bb #f] bb)
+           (let [bb #t] bb)))))
+
+  (define-term not-compiled
+    (compile not))
+
+  (define-term not-ANF
+    (λ (b : bool)
+      (let* ([id (λ (x : bool) x)]
+             [f1 (λ (x : bool) x)]
+             [y1 (f1 b)])
+        (if y1
+            (let [bb #f]
+              (id bb))
+            (let [bb #t]
+              (id bb))))))
+
+  (redex-chk
+   #:eq not-compiled not-ANF
+   #:eq (t.infer not-compiled) (compile-type (s.infer not))
+   #:eq (t.normalize not-compiled) (t.normalize (compile (s.normalize not))))
+
   #;(for ([_ (range 10)])
-    (redex-let* λANF
-      ([(⊢ · · e_F τ_F) (generate-term s.λF #:satisfying (s.⊢ · · e τ) 10)] ;; source term and its type
-       [e_ANF (term (compile e_F))] ;; compiled term
-       [τ_compiled (term (compile-type τ_F))] ;; compiled type
-       [τ_ANF (term (t.infer e_ANF))] ;; type of compiled term
-       [v_F (term (s.normalize e_F))]
-       [v_ANF (term (t.normalize e_ANF))])
-      (redex-chk
-       #:eq τ_compiled τ_ANF ;; · · ⊢ e : τ ⇒ · · ⊢ [e] : [τ]
-       #:eq v_F v_ANF))))
+      (redex-let*
+       λANF
+       ([(⊢ · · e_F τ_F) (generate-term s.λF #:satisfying (s.⊢ · · e τ) 10)] ;; source term and its type
+        [e_ANF (term (compile e_F))] ;; compiled term
+        [τ_compiled (term (compile-type τ_F))] ;; compiled type
+        [τ_ANF (term (t.infer e_ANF))] ;; type of compiled term
+        [v_F (term (s.normalize e_F))]
+        [v_ANF (term (t.normalize e_ANF))])
+       (redex-chk
+        #:eq τ_compiled τ_ANF ;; · · ⊢ e : τ ⇒ · · ⊢ [e] : [τ]
+        #:eq v_F v_ANF))))
+
+
+;; Other Metafunctions
+
+(define-metafunction t.λF-ANF
+  in-hole* : K c -> e
+  [(in-hole* (let [x_1 hole] e) x_2)
+   (substitute e x_1 x_2)]
+  [(in-hole* (let [x hole] x) c) c]
+  [(in-hole* K c) (in-hole K c)])
