@@ -39,33 +39,39 @@
 (define-metafunction/extension t.∀* λACC
   ∀* : (α ...) τ -> τ)
 
-;; (x : τ) ∈ Γ
-(define-extended-judgement-form λACC t.∈Γ
-  #:contract (∈Γ x τ Γ)
-  #:mode (∈Γ I O I))
-
 
 ;; ACC Translation Judgement
 ;; Note that the translation is defined over the typing rules for ANF
 ;; because it needs to know the types of the free variables
 
-;; [τ] ↝ τ
+;; (x : τ) ∈ Γ
+(define-extended-judgement-form λACC t.∈Γ
+  #:contract (∈Γ x τ Γ)
+  #:mode (∈Γ I O I))
+
+;; α ∈ Δ
+(define-extended-judgement-form λACC t.∈Δ
+  #:contract (∈Δ α Δ)
+  #:mode (∈Δ I I))
+
+;; Δ ⊢ [τ] ↝ τ
 ;; In ACC, this does nothing.
 (define-judgement-form λACC
-  #:contract (↝τ τ τ)
-  #:mode (↝τ I O)
+  #:contract (⊢τ Δ τ ↝ τ)
+  #:mode (⊢τ I I I O)
 
-  [--------- "τ-var"
-   (↝τ α α)]
+  [(∈Δ α Δ)
+   ------------- "τ-var"
+   (⊢τ Δ α ↝ α)]
 
-  [(↝τ σ_s σ_t)
-   (↝τ τ_s τ_t)
+  [(⊢τ Δ σ_s ↝ σ_t)
+   (⊢τ Δ τ_s ↝ τ_t)
    --------------------------------- "τ-fun"
-   (↝τ (→ σ_s τ_s) (→ σ_t τ_t))]
+   (⊢τ Δ (→ σ_s τ_s) ↝ (→ σ_t τ_t))]
 
-  [(↝τ τ_s τ_t)
-   -------------------------- "τ-poly"
-   (↝τ (∀ α τ_s) (∀ α τ_t))])
+  [(⊢τ (Δ α) τ_s ↝ τ_t)
+   ----------------------------- "τ-poly"
+   (⊢τ Δ (∀ α τ_s) ↝ (∀ α τ_t))])
 
 ;; Δ Γ ⊢ v ↝ v : τ
 (define-judgement-form λACC
@@ -76,7 +82,7 @@
    ------------------ "var"
    (⊢v Δ Γ x ↝ x τ)]
 
-  [(↝τ σ σ_1)
+  [(⊢τ Δ σ ↝ σ_1)
    (⊢e Δ (Γ (x : σ_1)) e_s ↝ e_t σ_2)
    (where (y ...) (free-vars (λ (x : σ) e_s)))
    (⊢v Δ Γ y ↝ y τ) ...
@@ -108,7 +114,7 @@
    -------------------------------------- "app"
    (⊢c Δ Γ (v_1s v_2s) ↝ (v_1t v_2t) τ)]
 
-  [(↝τ σ_s σ_t)
+  [(⊢τ Δ σ_s ↝ σ_t)
    (⊢v Δ Γ v_s ↝ v_t (∀ α τ))
    --------------------------------------------------------- "polyapp"
    (⊢c Δ Γ (v_s [σ_s]) ↝ (v_t [σ_t]) (substitute τ α σ_t))])
@@ -139,7 +145,7 @@
 (define-metafunction λACC
   compile-type : τ -> τ
   [(compile-type τ_s)
-   τ_t (judgement-holds (↝τ τ_s τ_t))])
+   τ_t (judgement-holds (⊢τ · τ_s ↝ τ_t))])
 
 (module+ test
   (define-term id
