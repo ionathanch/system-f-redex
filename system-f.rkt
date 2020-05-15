@@ -247,8 +247,7 @@
 (define-metafunction λF
   infer : e -> τ
   [(infer e)
-   τ
-   (judgement-holds (⊢ · · e τ))])
+   τ (judgement-holds (⊢ · · e τ))])
 
 
 ;; Dynamic Semantics

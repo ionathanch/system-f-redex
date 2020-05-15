@@ -71,7 +71,10 @@
 
   [(⊢τ (Δ α) τ_s ↝ τ_t)
    ----------------------------- "τ-poly"
-   (⊢τ Δ (∀ α τ_s) ↝ (∀ α τ_t))])
+   (⊢τ Δ (∀ α τ_s) ↝ (∀ α τ_t))]
+
+  [------------------- "bool"
+   (⊢τ Δ bool ↝ bool)])
 
 ;; Δ Γ ⊢ v ↝ v : τ
 (define-judgement-form λACC
@@ -79,7 +82,7 @@
   #:mode (⊢v I I I I O O)
 
   [(∈Γ x τ Γ)
-   ------------------ "var"
+   ----------------- "var"
    (⊢v Δ Γ x ↝ x τ)]
 
   [(⊢τ Δ σ ↝ σ_1)
@@ -97,7 +100,10 @@
    (where (β_1 ...) (free-type-vars-types (τ ...)))
    (where (β_2 ...) (free-type-vars-term (Λ α e_s)))
    ------------------------------------------------------------------------------------------------------- "polyfun"
-   (⊢v Δ Γ (Λ α e_s) ↝ (⟨ (Λ (β_1 ... β_2 ...) ([y : τ] ...) α e_t) [β_1 ... β_2 ...] (y ...) ⟩) (∀ α σ))])
+   (⊢v Δ Γ (Λ α e_s) ↝ (⟨ (Λ (β_1 ... β_2 ...) ([y : τ] ...) α e_t) [β_1 ... β_2 ...] (y ...) ⟩) (∀ α σ))]
+
+  [-------------------- "bool"
+   (⊢v Δ Γ b ↝ b bool)])
 
 ;; Δ Γ ⊢ c ↝ c : τ
 ;; Trivial transformation
@@ -106,17 +112,17 @@
   #:mode (⊢c I I I I O O)
 
   [(⊢v Δ Γ v_s ↝ v_t τ)
-   ---------------------- "val"
+   --------------------- "val"
    (⊢c Δ Γ v_s ↝ v_t τ)]
 
   [(⊢v Δ Γ v_2s ↝ v_2t σ)
    (⊢v Δ Γ v_1s ↝ v_1t (→ σ τ))
-   -------------------------------------- "app"
+   ------------------------------------- "app"
    (⊢c Δ Γ (v_1s v_2s) ↝ (v_1t v_2t) τ)]
 
   [(⊢τ Δ σ_s ↝ σ_t)
    (⊢v Δ Γ v_s ↝ v_t (∀ α τ))
-   --------------------------------------------------------- "polyapp"
+   -------------------------------------------------------- "polyapp"
    (⊢c Δ Γ (v_s [σ_s]) ↝ (v_t [σ_t]) (substitute τ α σ_t))])
 
 ;; Δ Γ ⊢ e ↝ e : τ
@@ -126,13 +132,19 @@
   #:mode (⊢e I I I I O O)
 
   [(⊢c Δ Γ c_s ↝ c_t τ)
-   ---------------------- "comp"
+   --------------------- "comp"
    (⊢e Δ Γ c_s ↝ c_t τ)]
 
   [(⊢c Δ Γ c_s ↝ c_t σ)
    (⊢e Δ (Γ (x : σ)) e_s ↝ e_t τ)
-   -------------------------------------------------- "let"
-   (⊢e Δ Γ (let [x c_s] e_s) ↝ (let [x c_t] e_t) τ)])
+   ------------------------------------------------- "let"
+   (⊢e Δ Γ (let [x c_s] e_s) ↝ (let [x c_t] e_t) τ)]
+
+  [(⊢v Δ Γ v_s ↝ v_t bool)
+   (⊢e Δ Γ e_1s ↝ e_1t τ)
+   (⊢e Δ Γ e_2s ↝ e_2t τ)
+   --------------------------------------------------- "if"
+   (⊢e Δ Γ (if v_s e_1s e_2s) ↝ (if v_t e_1t e_2t) τ)])
 
 
 ;; Compilation Convenience Metafunctions
@@ -160,6 +172,9 @@
            [id-id (id-forall id-poly)])
       id-id))
 
+  (define-term if-trivial
+    (if #t (λ (b : bool) b) (λ (b : bool) b)))
+
   (define-term id-ACC
     (⟨ (Λ () () a
           (⟨ (λ (a) () (x : a) x) [a] () ⟩))
@@ -175,6 +190,11 @@
              [a] () ⟩))
        [] () ⟩))
 
+  (define-term if-trivial-ACC
+    (if #t
+        (⟨ (λ () () (b : bool) b) () () ⟩)
+        (⟨ (λ () () (b : bool) b) () () ⟩)))
+
   (define-term id-id-term-ACC
     (let* ([id-poly id-ACC]
            [id-forall (id-poly [(∀ a (→ a a))])]
@@ -187,6 +207,8 @@
     (compile const))
   (define-term id-id-term-compiled
     (compile id-id-term))
+  (define-term if-trivial-compiled
+    (compile if-trivial))
 
   (redex-chk
    #:eq id-compiled id-ACC
@@ -201,7 +223,12 @@
   (redex-chk
    #:eq id-id-term-compiled id-id-term-ACC
    #:eq (t.infer id-id-term-compiled) (compile-type (s.infer id-id-term))
-   #:eq (t.normalize id-id-term-compiled) (compile (s.normalize id-id-term))))
+   #:eq (t.normalize id-id-term-compiled) (compile (s.normalize id-id-term)))
+
+  (redex-chk
+   #:eq if-trivial-compiled if-trivial-ACC
+   #:eq (t.infer if-trivial-compiled) (compile-type (s.infer if-trivial))
+   #:eq (t.normalize if-trivial-compiled) (compile (s.normalize if-trivial))))
 
 
 ;; Other Metafunctions
@@ -219,6 +246,7 @@
 (define-metafunction s.λF-ANF
   free-type-vars-type : τ -> (α ...)
   [(free-type-vars-type α) (α)]
+  [(free-type-vars-type bool) ()]
   [(free-type-vars-type (→ σ τ))
    (α ... β ...)
    (where (α ...) (free-type-vars-type σ))
@@ -229,7 +257,7 @@
 
 ;; Returns free type variables in given term
 (define-metafunction s.λF-ANF
-  free-type-vars-term : any -> (α ...)
+  free-type-vars-term : e -> (α ...)
   [(free-type-vars-term x) ()]
   [(free-type-vars-term (λ (_ : τ) e))
    (α_τ ... α_e ...)

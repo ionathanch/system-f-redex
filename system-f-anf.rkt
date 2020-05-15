@@ -17,7 +17,7 @@
 ;; Syntax
 
 (define-extended-language λF-ANF λF
-  (v ::= x (λ (x : τ) e) (Λ α e) #t #f) ;; Values
+  (v ::= x (λ (x : τ) e) (Λ α e) b) ;; Values
   (c ::= v (v v) (v [σ])) ;; Computations
   (e ::= c (let [x c] e) (if v e e)) ;; Configurations
 
@@ -255,8 +255,7 @@
 (define-metafunction λF-ANF
   infer : e -> τ
   [(infer e)
-   τ
-   (judgement-holds (⊢e · · e τ))])
+   τ (judgement-holds (⊢e · · e τ))])
 
 
 ;; Dynamic Semantics

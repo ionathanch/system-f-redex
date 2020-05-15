@@ -25,7 +25,7 @@
      (Λ (α ...) ([x : τ] ...) β e)        ;; Λ (α ...). λ (x:τ ...). Λ α.   e
      (λ (α ...) ([x : τ] ...) (y : σ) e)) ;; Λ (α ...). λ (x:τ ...). λ x:τ. e
 
-  (v ::= x (⟨ k [σ ...] (v ...) ⟩)) ;; Values (incl. closures)
+  (v ::= x (⟨ k [σ ...] (v ...) ⟩) b) ;; Values (incl. closures)
 
   (F ::= E ;; Evaluation contexts (under closures)
      (⟨ F [σ ...] (v ...) ⟩)
@@ -39,16 +39,16 @@
       e #:refers-to (shadow α ... x ... y))
   ;; so instead we treat the bindings separately and export the variables
 
-  (b ::= ([x : τ] ...)) ;; Bindings
+  (binds ::= ([x : τ] ...)) ;; Bindings
   #:binding-forms
   ([x : τ] ...) #:exports (shadow x ...)
   (Λ (α ...)
-     b #:refers-to (shadow α ...)
-     β e #:refers-to (shadow α ... b β))
+    binds #:refers-to (shadow α ...)
+    β e #:refers-to (shadow α ... binds β))
   (λ (α ...)
-    b #:refers-to (shadow α ...)
+    binds #:refers-to (shadow α ...)
     (y : σ) #:refers-to (shadow α ...)
-    e #:refers-to (shadow α ... b y))
+    e #:refers-to (shadow α ... binds y))
   (tcode
    (α ...) (τ ...) #:refers-to (shadow α ...)
    β σ #:refers-to (shadow α ... β))
@@ -199,6 +199,8 @@
 (module+ test
   (redex-judgement-holds-chk
    (⊢v (· b) (Γ* (z : b) (y : (∀ b b))))
+   [#t bool]
+   [#f bool]
    [(⟨ (Λ (a) ([x : a]) c x) [(∀ b b)] (y) ⟩) (∀ α (∀ β β))])
   (redex-judgement-equals-chk
    (⊢v (· b) (Γ* (z : b) (y : (∀ b b))))
@@ -245,7 +247,13 @@
   [(⊢c Δ Γ c σ)
    (⊢e Δ (Γ (x : σ)) e τ)
    ------------------------- "let"
-   (⊢e Δ Γ (let [x c] e) τ)])
+   (⊢e Δ Γ (let [x c] e) τ)]
+
+  [(⊢v Δ Γ v bool)
+   (⊢e Δ Γ e_1 τ)
+   (⊢e Δ Γ e_2 τ)
+   -------------------------- "if"
+   (⊢e Δ Γ (if v e_1 e_2) τ)])
 
 (module+ test
   (redex-judgement-holds-chk
@@ -253,13 +261,13 @@
    [(⟨ (Λ (a) ([x : a]) c x) [(∀ b b)] (y) ⟩) (∀ α (∀ β β))])
   (redex-judgement-equals-chk
    (⊢e (· b) (Γ* (z : b) (y : (∀ b b))))
+   [(if #t y y) τ #:pat τ #:term (∀ b b)]
    [(⟨ (λ (a) ([x : a]) (y : (→ a a)) (y x)) [b] (z) ⟩) τ #:pat τ #:term (→ (→ b b) b)]))
 
 (define-metafunction λF-ACC
   infer : e -> τ
   [(infer e)
-   τ
-   (judgement-holds (⊢e · · e τ))])
+   τ (judgement-holds (⊢e · · e τ))])
 
 
 ;; Dynamic Semantics
@@ -287,7 +295,13 @@
                  (substitute* e (α ...) (σ ...))
                  (x ...) (v ...))
                 β σ_1))
-        "τ")))
+        "τ")
+   (--> (if #t e_1 e_2)
+        e_1
+        "ιt")
+   (--> (if #f e_1 e_2)
+        e_2
+        "ιf")))
 
 (define-metafunction λF-ACC
   reduce : e -> e
@@ -321,12 +335,14 @@
    ⟶
    (term idid-id)
    (term id))
-
+  (test-->>
+   ⟶
+   (term (let* ([t #t] [f #f]) (if t f t)))
+   (term #f))
   (test-->>
    ⇓
    (term app-id)
    (term (id y)))
-
   (test-->>
    ⇓
    (term (⟨ (Λ () () b idid-id) [] () ⟩))
