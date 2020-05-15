@@ -19,16 +19,17 @@
 (define-extended-language λF-H λF-ACC
   (s ::= τ *) ;; Sorts (types or the * kind)
   (l ::= variable-not-otherwise-mentioned) ;; Labels
-  (v ::= x (⟨ l [σ ...] (v ...) ⟩)) ;; Values
+  (v ::= x (⟨ l [σ ...] (v ...) ⟩) b) ;; Values
   (p ::= [l ↦ (α ...) ([x : τ] ...) (y : s) e]) ;; Code
   (Φ ::= (p ...)) ;; Code context
   (P ::= (let Φ e)) ;; Programs
 
   #:binding-forms
   (let ([l ↦
-           (α ...) b #:refers-to (shadow α ...)
-           (x : s)   #:refers-to (shadow α ...)
-           e_body    #:refers-to (shadow α ... b x)]
+           (α ...)
+           binds   #:refers-to (shadow α ...)
+           (x : s) #:refers-to (shadow α ...)
+           e_body  #:refers-to (shadow α ... binds x)]
         ...) #:refers-to (shadow l ...)
     e #:refers-to (shadow l ...)))
 
@@ -132,7 +133,7 @@
    (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
    (where σ_2 (substitute* (∀ β σ_1) (α ...) (σ ...)))
    (⊢v Δ Γ v τ_0) ...
-   ---------------------------------------- "polyfun"
+   ----------------------------------------- "polyfun"
    (⊢v Δ Γ (⟨ l [σ ..._1] (v ..._2) ⟩) σ_2)]
 
   [(⊢v Δ Γ l (vcode (α ..._1) (τ ..._2) σ_1 σ_2))
@@ -140,8 +141,11 @@
    (where (τ_0 ..._2) (substitute** (τ ...) (α ...) (σ ...)))
    (where σ_12 (substitute* (→ σ_1 σ_2) (α ...) (σ ...)))
    (⊢v Δ Γ v τ_0) ...
-   ----------------------------------------- "fun"
-   (⊢v Δ Γ (⟨ l [σ ..._1] (v ..._2) ⟩) σ_12)])
+   ------------------------------------------ "fun"
+   (⊢v Δ Γ (⟨ l [σ ..._1] (v ..._2) ⟩) σ_12)]
+
+  [---------------- "bool"
+   (⊢v Δ Γ b bool)])
 
 (module+ test
   (redex-judgement-holds-chk
@@ -184,7 +188,13 @@
   [(⊢c Δ Γ c σ)
    (⊢e Δ (Γ (x : σ)) e τ)
    ------------------------- "let"
-   (⊢e Δ Γ (let [x c] e) τ)])
+   (⊢e Δ Γ (let [x c] e) τ)]
+
+  [(⊢v Δ Γ v bool)
+   (⊢e Δ Γ e_1 τ)
+   (⊢e Δ Γ e_2 τ)
+   -------------------------- "if"
+   (⊢e Δ Γ (if v e_1 e_2) τ)])
 
 ;; ⊢ p : τ
 ;; Copied from λF-ACC's ⊢k, but with λ, Λ -> l ↦
@@ -217,6 +227,7 @@
   #:contract (⊢ P τ)
   #:mode (⊢ I O)
 
+  ;; TODO: labels can refer to other labels
   [(⊢p p σ) ...
    (where ((l ↦ _ _ _ _) ...) (p ...))
    (where Γ (Γ* (l : σ) ...))
@@ -227,8 +238,8 @@
 (module+ test
   (define-term id-id-term
     (let ([id-x ↦ (a) () (x : a) x]
-          [id-a ↦ () ([id-x : (vcode (a) () a a)]) (a : *) (⟨ id-x [a] () ⟩)])
-      (let* ([id (⟨ id-a () (id-x) ⟩)]
+          [id-a ↦ () () (a : *) (⟨ id-x [a] () ⟩)])
+      (let* ([id (⟨ id-a () () ⟩)]
              [id-id-type (id [(∀ a (→ a a))])]
              [id-id (id-id-type id)])
         id-id)))
@@ -236,6 +247,11 @@
   (redex-judgement-equals-chk
    (⊢)
    [id-id-term τ #:pat τ #:term (∀ a (→ a a))]))
+
+(define-metafunction λF-ACC
+  infer : P -> τ
+  [(infer e)
+   τ (judgement-holds (⊢ P τ))])
 
 
 ;; Dynamic Semantics
@@ -261,6 +277,14 @@
   [(⇓ Φ (substitute e x v) v_0)
    ------------------------ "let"
    (⇓ Φ (let [x v] e) v_0)]
+
+  [(⇓ Φ e_1 v_1)
+   -------------------------- "if-t"
+   (⇓ Φ (if #t e_1 e_2) v_1)]
+
+  [(⇓ Φ e_2 v_2)
+   -------------------------- "if-f"
+   (⇓ Φ (if #f e_1 e_2) v_2)]
 
   [(where (l ↦ (α ...) ([x : _] ...) (y : _) e) (get-code l Φ))
    (where e_2 (substitute
@@ -301,8 +325,8 @@
 (module+ test
   (define-term id-id-term-reduced
     (let ([id-x ↦ (a) () (x : a) x]
-          [id-a ↦ () ([id-x : (vcode (a) () a a)]) (a : *) (⟨ id-x [a] () ⟩)])
-      (⟨ id-a [] (id-x) ⟩)))
+          [id-a ↦ () () (a : *) (⟨ id-x [a] () ⟩)])
+      (⟨ id-a [] () ⟩)))
 
   (redex-chk
    #:eq (reduce id-id-term) id-id-term-reduced))
