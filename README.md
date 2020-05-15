@@ -11,7 +11,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * Uses Redex's `in-hole` contexts for continuations used during compilation
 * Compiler from System F to ANF-restricted System F (defined with an ambient continuation)
   * The naïve version copies the continuation twice when compiling if expressions
-  * The improved version will be defined over System F's typing rules and avoids code copying
+  * The improved version is defined over System F's typing rules and avoids code copying
 
 ### (ANF-Restricted) System F with Closures
 * Type synthesis, CBV small-step semantics that evaluate closures during application
@@ -34,7 +34,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Reimplement ANF translation over typing rules to avoid copying continuation in compilation of if expressions
+* Add booleans to F-ACC, F-H, ACC, hoisting
 * Consider adding fixpoints (this might be of interest for ACC... or not)
 * Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README
