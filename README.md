@@ -1,10 +1,10 @@
 # System F in Redex
 
-This is an implementation of a Church-style (explicitly typed-annotated) System F (polymorphic) lambda calculus with definitions (let-expressions) in Redex. Included are:
+This is an implementation of a Church-style (explicitly typed-annotated) System F (polymorphic) lambda calculus with definitions (let-expressions) and branching (booleans) in Redex. Included are:
 
 ### System F
 * Type synthesis, CBV small-step semantics
-* Church encodings of numerals and arithmetic (in progress)
+* Church encodings of numerals and some arithmetic
 
 ### ANF-Restricted System F
 * Type synthesis, CBV small-step semantics
@@ -20,6 +20,7 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 ### (ANF-Restricted) Hoisted System F (with Closures)
 * Type synthesis, CBV big-step semantics (implemented as a judgement rather than a reduction-relation)
 * Compiler from closure-converted System F to hoisted System F
+* N.B. Each code block label is only visible in subsequent code blocks
 
 ### System Fω (extends System F)
 * Why? I don't know.
@@ -34,13 +35,8 @@ This is an implementation of a Church-style (explicitly typed-annotated) System 
 * This doesn't belong here
 
 ## TODOs
-* Add booleans to F-ACC, F-H, ACC, hoisting
 * Consider adding fixpoints (this might be of interest for ACC... or not)
-* Finish Church encodings (F)
 * Add inventory of metafunctions and how to run things to this README
 * Fix `redex-judgement-equals-chk` macro so that when check-true fails, the highlight goes over the failed branch, not over the macro itself (redex-chk)
 * Consider a heap allocation pass. This is primarily to concretize what a closure would look like at low level. I'm guessing the free types and terms would each be an array.
-* This isn't very relevant to this little project, but I want to see if a single syntactic pass is possible for each compiler.
-  * Since ANF requires an ambient continuation, we'll have to switch to continuation-passing style, or monadic normal form.
-  * Typed closure conversion requires the types of the free variables. Either annotated terms will be needed, or we compile an untyped calculus instead.
-  * Hoisting progressively adds code definitions to the global let. I'm not sure if this affects things.
+

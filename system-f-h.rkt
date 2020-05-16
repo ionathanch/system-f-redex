@@ -24,6 +24,12 @@
   (Φ ::= (p ...)) ;; Code context
   (P ::= (let Φ e)) ;; Programs
 
+  ;; This suggests that each l is bound in the context of each other code block.
+  ;; However, going by the typing rules, this is not true: each l is only bound in
+  ;; all /subsequent/ code blocks. But
+  ;;   ([l ↦ _ _ _ _] #:...bind (labels l (shadow labels l))) e #:refers-to labels
+  ;; doesn't quite work, so I'm keeping this as it is.
+  ;; If I decide to add (mutual) fixpoints, this will have to hold anyway.
   #:binding-forms
   (let ([l ↦
            (α ...)
@@ -91,6 +97,14 @@
 ;; Unroll (α_1 ... α_n) into ((· α_1) ... α_n)
 (define-metafunction/extension F.Δ* λF-H
   Δ* : α ... -> Δ)
+
+;; Unroll (Γ (x_1 : τ_1) ... (x_n : τ_n)) into ((Γ (x_1 : τ_1)) ... (x_n : τ_n))
+(define-metafunction/extension F.Γ+ λF-H
+  Γ+ : Γ (x : τ) ... -> Γ)
+
+;; Unroll (Δ α_1 ... α_n) into ((Δ α_1) ... α_n)
+(define-metafunction/extension F.Δ+ λF-H
+  Δ+ : Δ α ... -> Δ)
 
 
 ;; Static Semantics
@@ -196,28 +210,28 @@
    -------------------------- "if"
    (⊢e Δ Γ (if v e_1 e_2) τ)])
 
-;; ⊢ p : τ
+;; Γ ⊢ p : τ
 ;; Copied from λF-ACC's ⊢k, but with λ, Λ -> l ↦
 ;; If P contained letrecs, then l : (code (α ...) (τ ...) σ_1 σ_2) would be in Γ+
 (define-judgement-form λF-H
-  #:contract (⊢p p τ)
-  #:mode (⊢p I O)
+  #:contract (⊢p Γ p τ)
+  #:mode (⊢p I I O)
 
   [(where Δ_0 (Δ* α ...))
    (⊢τ Δ_0 τ) ...
-   (⊢e (Δ_0 β) (Γ* (x : τ) ...) e σ)
+   (⊢e (Δ_0 β) (Γ+ Γ (x : τ) ...) e σ)
    ------------------------------------------------------------------------ "tcode"
-   (⊢p (l ↦ (α ...) ([x : τ] ...) (β : *) e) (tcode (α ...) (τ ...) β σ))]
+   (⊢p Γ (l ↦ (α ...) ([x : τ] ...) (β : *) e) (tcode (α ...) (τ ...) β σ))]
 
   [(where Δ_0 (Δ* α ...))
    (⊢τ Δ_0 τ) ...
-   (⊢e Δ_0 (Γ* (x : τ) ... (y : σ_1)) e σ_2)
+   (⊢e Δ_0 (Γ+ Γ (x : τ) ... (y : σ_1)) e σ_2)
    ------------------------------------------------------------------------------ "vcode"
-   (⊢p (l ↦ (α ...) ([x : τ] ...) (y : σ_1) e) (vcode (α ...) (τ ...) σ_1 σ_2))])
+   (⊢p Γ (l ↦ (α ...) ([x : τ] ...) (y : σ_1) e) (vcode (α ...) (τ ...) σ_1 σ_2))])
 
 (module+ test
   (redex-judgement-holds-chk
-   (⊢p)
+   (⊢p ·)
    [(l ↦ (a b) ([x : a] [y : (∀ b b)]) (c : *) (y [c])) (tcode (α_1 β_1) (α_1 (∀ β_2 β_2)) α_2 α_2)]
    [(l ↦ (a b) ([x : a] [y : (→ a b)]) (z : a) (y z))   (vcode (α β) (α (→ α β)) α β)]))
 
@@ -227,13 +241,10 @@
   #:contract (⊢ P τ)
   #:mode (⊢ I O)
 
-  ;; TODO: labels can refer to other labels
-  [(⊢p p σ) ...
-   (where ((l ↦ _ _ _ _) ...) (p ...))
-   (where Γ (Γ* (l : σ) ...))
+  [(where Γ (infer-programs Φ))
    (⊢e · Γ e τ)
    ---------------------- "program"
-   (⊢ (let (p ...) e) τ)])
+   (⊢ (let Φ e) τ)])
 
 (module+ test
   (define-term id-id-term
@@ -248,9 +259,9 @@
    (⊢)
    [id-id-term τ #:pat τ #:term (∀ a (→ a a))]))
 
-(define-metafunction λF-ACC
+(define-metafunction λF-H
   infer : P -> τ
-  [(infer e)
+  [(infer P)
    τ (judgement-holds (⊢ P τ))])
 
 
@@ -353,3 +364,14 @@
    (l ↦ any_types any_terms any_arg e_body)]
   [(get-code l ([_ ↦ _ _ _ _] p ...))
    (get-code l (p ...))])
+
+;; Given programs (p_1 ... p_n) with types (σ_1 ... σ_n), infer the type of p_i
+;; under the context (Γ* (l_1 : σ_1) ... (l_{i - 1} : σ_{i - 1})) for every p_i
+(define-metafunction λF-H
+  infer-programs : Φ -> Γ
+  [(infer-programs ()) ·]
+  [(infer-programs (p_r ... p))
+   (Γ (l : σ))
+   (where (l ↦ _ _ _ _) p)
+   (where Γ (infer-programs (p_r ...)))
+   (judgement-holds (⊢p Γ p σ))])
